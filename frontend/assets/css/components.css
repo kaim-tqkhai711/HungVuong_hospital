@@ -481,14 +481,39 @@
 /* Partogram Table */
 .partogram-table-wrapper {
     overflow-x: auto;
+    overflow-y: visible;
     border-radius: var(--border-radius-sm);
     border: 1px solid var(--gray-300);
+    max-width: 100%;
+    /* Ensure scrollbar is visible */
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-400) var(--gray-100);
+}
+
+.partogram-table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.partogram-table-wrapper::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 4px;
+}
+
+.partogram-table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--gray-400);
+    border-radius: 4px;
+}
+
+.partogram-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-500);
 }
 
 .partogram-table {
     width: 100%;
+    min-width: max-content; /* Allow table to grow beyond container */
     border-collapse: collapse;
     font-size: 13px;
+    white-space: nowrap; /* Prevent text wrapping in cells */
 }
 
 .partogram-table th,

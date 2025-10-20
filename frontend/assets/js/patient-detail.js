@@ -157,20 +157,28 @@ function calculateOverallStatus(record) {
     
     let warnings = 0;
     
+    // Get values from both flat and nested structure
+    const pulse = record.pulse || record.mother?.pulse;
+    const systolicBP = record.systolic_bp || record.mother?.systolic_bp;
+    const temperature = record.temperature || record.mother?.temperature;
+    const fhr = record.fetal_heart_rate || record.fetus?.fetal_heart_rate;
+    const ctg = record.ctg_score || record.fetus?.ctg_score;
+    const contractions = record.contractions_per_10min || record.labor?.contractions_per_10min;
+    
     // Check vital signs
-    if (record.pulse < 60 || record.pulse >= 120) warnings++;
-    if (record.systolic_bp < 80 || record.systolic_bp >= 140) warnings++;
-    if (record.temperature < 35 || record.temperature >= 37.5) warnings++;
+    if (pulse && (pulse < 60 || pulse >= 120)) warnings++;
+    if (systolicBP && (systolicBP < 80 || systolicBP >= 140)) warnings++;
+    if (temperature && (temperature < 35 || temperature >= 37.5)) warnings++;
     
     // Check fetal heart rate
-    if (record.fetal_heart_rate < 110 || record.fetal_heart_rate >= 160) warnings++;
+    if (fhr && (fhr < 110 || fhr >= 160)) warnings++;
     
     // Check CTG score (most critical)
-    if (record.ctg_score === 3) return 'critical';
-    if (record.ctg_score === 2) warnings += 2;
+    if (ctg === 3) return 'critical';
+    if (ctg === 2) warnings += 2;
     
     // Check contractions
-    if (record.contractions_per_10min < 2 || record.contractions_per_10min > 5) warnings++;
+    if (contractions && (contractions < 2 || contractions > 5)) warnings++;
     
     // Determine overall status
     if (warnings >= 3) return 'critical';
@@ -257,7 +265,8 @@ function renderPartogramTable(patient) {
         if (sectionType === 'fetus') {
             // 🔥 CTG có ưu tiên tuyệt đối cho thai nhi - kiểm tra tất cả records
             for (let record of records) {
-                const ctg = record.fetus?.ctg_score;
+                // Check both direct ctg_score and nested fetus.ctg_score
+                const ctg = record.ctg_score || record.fetus?.ctg_score;
                 if (ctg === 3) return 'critical';  // CTG=3 → ĐỎ ngay lập tức
                 if (ctg === 2) return 'warning';   // CTG=2 → VÀNG ngay lập tức
             }
@@ -267,7 +276,7 @@ function renderPartogramTable(patient) {
             let hasCritical = false;
             
             records.forEach(record => {
-                const fhr = record.fetus?.fetal_heart_rate;
+                const fhr = record.fetal_heart_rate || record.fetus?.fetal_heart_rate;
                 if (fhr && (fhr < 110 || fhr >= 160)) totalViolations++;
                 if (fhr && (fhr < 100 || fhr > 180)) hasCritical = true;
             });
@@ -283,9 +292,10 @@ function renderPartogramTable(patient) {
             let hasCritical = false;
             
             records.forEach(record => {
-                const pulse = record.mother?.pulse;
-                const systolic = record.mother?.systolic_bp;
-                const temperature = record.mother?.temperature;
+                // Check both direct fields and nested mother fields
+                const pulse = record.pulse || record.mother?.pulse;
+                const systolic = record.systolic_bp || record.mother?.systolic_bp;
+                const temperature = record.temperature || record.mother?.temperature;
                 
                 if (pulse && (pulse < 60 || pulse >= 120)) totalViolations++;
                 if (systolic && (systolic < 80 || systolic >= 140)) totalViolations++;
@@ -312,27 +322,27 @@ function renderPartogramTable(patient) {
     
     // TÌNH TRẠNG MẸ
     bodyHTML += `<tr class="section-header section-${motherStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG MẸ</td></tr>`;
-    bodyHTML += createRow('Mạch (lần/phút)', 'mother', r => r.mother?.pulse,
-        r => getCellClass(r.mother?.pulse, { critical: [(v) => v < 60, (v) => v >= 120] }));
-    bodyHTML += createRow('HA tâm thu (mmHg)', 'mother', r => r.mother?.systolic_bp,
-        r => getCellClass(r.mother?.systolic_bp, { critical: [(v) => v < 80, (v) => v >= 140] }));
-    bodyHTML += createRow('HA tâm trương (mmHg)', 'mother', r => r.mother?.diastolic_bp,
-        r => getCellClass(r.mother?.diastolic_bp, { critical: [(v) => v < 50, (v) => v >= 90] }));
-    bodyHTML += createRow('Nhiệt độ (°C)', 'mother', r => r.mother?.temperature,
-        r => getCellClass(r.mother?.temperature, { critical: [(v) => v < 35, (v) => v >= 37.5] }));
+    bodyHTML += createRow('Mạch (lần/phút)', 'mother', r => r.pulse || r.mother?.pulse,
+        r => getCellClass(r.pulse || r.mother?.pulse, { critical: [(v) => v < 60, (v) => v >= 120] }));
+    bodyHTML += createRow('HA tâm thu (mmHg)', 'mother', r => r.systolic_bp || r.mother?.systolic_bp,
+        r => getCellClass(r.systolic_bp || r.mother?.systolic_bp, { critical: [(v) => v < 80, (v) => v >= 140] }));
+    bodyHTML += createRow('HA tâm trương (mmHg)', 'mother', r => r.diastolic_bp || r.mother?.diastolic_bp,
+        r => getCellClass(r.diastolic_bp || r.mother?.diastolic_bp, { critical: [(v) => v < 50, (v) => v >= 90] }));
+    bodyHTML += createRow('Nhiệt độ (°C)', 'mother', r => r.temperature || r.mother?.temperature,
+        r => getCellClass(r.temperature || r.mother?.temperature, { critical: [(v) => v < 35, (v) => v >= 37.5] }));
     
     // TÌNH TRẠNG THAI NHI  
     bodyHTML += `<tr class="section-header section-${fetusStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG THAI NHI</td></tr>`;
-    bodyHTML += createRow('Tim thai (lần/phút)', 'fetus', r => r.fetus?.fetal_heart_rate,
-        r => getCellClass(r.fetus?.fetal_heart_rate, { critical: [(v) => v < 110, (v) => v >= 160] }));
-    bodyHTML += createRow('CTG', 'fetus', r => r.fetus?.ctg_score,
-        r => getCellClass(r.fetus?.ctg_score, { critical: [(v) => v === 3], warning: [(v) => v === 2] }));
+    bodyHTML += createRow('Tim thai (lần/phút)', 'fetus', r => r.fetal_heart_rate || r.fetus?.fetal_heart_rate,
+        r => getCellClass(r.fetal_heart_rate || r.fetus?.fetal_heart_rate, { critical: [(v) => v < 110, (v) => v >= 160] }));
+    bodyHTML += createRow('CTG', 'fetus', r => r.ctg_score || r.fetus?.ctg_score,
+        r => getCellClass(r.ctg_score || r.fetus?.ctg_score, { critical: [(v) => v === 3], warning: [(v) => v === 2] }));
     
     // DIỄN BIẾN CHUYỂN DẠ
     bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">DIỄN BIẾN CHUYỂN DẠ</td></tr>';
-    bodyHTML += createRow('Cổ tử cung (cm)', 'labor', r => r.labor?.cervix_dilation);
-    bodyHTML += createRow('Cơn co (TC/10 phút)', 'labor', r => r.labor?.contractions_per_10min,
-        r => getCellClass(r.labor?.contractions_per_10min, { critical: [(v) => v < 2, (v) => v > 5] }));
+    bodyHTML += createRow('Cổ tử cung (cm)', 'labor', r => r.cervix_dilation || r.labor?.cervix_dilation);
+    bodyHTML += createRow('Cơn co (TC/10 phút)', 'labor', r => r.contractions_per_10min || r.labor?.contractions_per_10min,
+        r => getCellClass(r.contractions_per_10min || r.labor?.contractions_per_10min, { critical: [(v) => v < 2, (v) => v > 5] }));
     bodyHTML += createRow('Thời gian từ lần trước (h)', 'labor', r => r.time_since_dilation ? r.time_since_dilation.toFixed(1) : '-');
     
     bodyHTML += '</tbody>';
@@ -371,13 +381,21 @@ function showOverviewModal() {
         // Collect warnings
         let warnings = [];
         
-        if (record.pulse < 60 || record.pulse >= 120) warnings.push('Mạch bất thường');
-        if (record.systolic_bp < 80 || record.systolic_bp >= 140) warnings.push('Huyết áp bất thường');
-        if (record.temperature < 35 || record.temperature >= 37.5) warnings.push('Nhiệt độ bất thường');
-        if (record.fetal_heart_rate < 110 || record.fetal_heart_rate >= 160) warnings.push('Tim thai bất thường');
-        if (record.ctg_score === 3) warnings.push('CTG: Nguy hiểm (3)');
-        else if (record.ctg_score === 2) warnings.push('CTG: Cần theo dõi (2)');
-        if (record.contractions_per_10min < 2 || record.contractions_per_10min > 5) warnings.push('Tần suất cơn co bất thường');
+        // Check mother vitals (support both flat and nested structure)
+        const pulse = record.pulse || record.mother?.pulse;
+        const systolicBP = record.systolic_bp || record.mother?.systolic_bp;
+        const temperature = record.temperature || record.mother?.temperature;
+        const fhr = record.fetal_heart_rate || record.fetus?.fetal_heart_rate;
+        const ctg = record.ctg_score || record.fetus?.ctg_score;
+        const contractions = record.contractions_per_10min || record.labor?.contractions_per_10min;
+        
+        if (pulse && (pulse < 60 || pulse >= 120)) warnings.push('Mạch bất thường');
+        if (systolicBP && (systolicBP < 80 || systolicBP >= 140)) warnings.push('Huyết áp bất thường');
+        if (temperature && (temperature < 35 || temperature >= 37.5)) warnings.push('Nhiệt độ bất thường');
+        if (fhr && (fhr < 110 || fhr >= 160)) warnings.push('Tim thai bất thường');
+        if (ctg === 3) warnings.push('CTG: Nguy hiểm (3)');
+        else if (ctg === 2) warnings.push('CTG: Cần theo dõi (2)');
+        if (contractions && (contractions < 2 || contractions > 5)) warnings.push('Tần suất cơn co bất thường');
         
         overviewHTML += `
             <div class="overview-card ${statusInfo[status].class}">
@@ -766,6 +784,9 @@ function setupEventListeners() {
     // Save outcome button
     document.getElementById('btnSaveOutcome').addEventListener('click', saveOutcome);
     
+    // Print button
+    document.getElementById('btnPrint').addEventListener('click', printPartogram);
+    
     // Close modals
     document.getElementById('closeOverviewModal').addEventListener('click', function() {
         document.getElementById('overviewModal').style.display = 'none';
@@ -810,6 +831,311 @@ function showLoading(show) {
             loader.style.display = 'none';
         }
     }
+}
+
+// Print partogram function
+function printPartogram() {
+    if (!currentPatient || !currentPatient.partogramData || currentPatient.partogramData.length === 0) {
+        showToast('Chưa có dữ liệu để in', 'warning');
+        return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    
+    // Generate print content
+    const printContent = generatePrintContent();
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Biểu đồ theo dõi chuyển dạ - ${currentPatient.name}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    font-size: 12px; 
+                    line-height: 1.4;
+                    padding: 20px;
+                }
+                .print-header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 15px;
+                }
+                .print-header h1 { 
+                    font-size: 18px; 
+                    margin-bottom: 5px; 
+                }
+                .print-header h2 { 
+                    font-size: 16px; 
+                    margin-bottom: 10px; 
+                }
+                .patient-info {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 20px;
+                    background: #f5f5f5;
+                    padding: 10px;
+                }
+                .patient-info div {
+                    flex: 1;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                    font-size: 10px;
+                }
+                th, td {
+                    border: 1px solid #333;
+                    padding: 6px 4px;
+                    text-align: center;
+                    vertical-align: middle;
+                }
+                th {
+                    background: #e0e0e0;
+                    font-weight: bold;
+                }
+                .sticky-col {
+                    background: #f0f0f0;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 8px;
+                }
+                .section-header td {
+                    background: #d0d0d0;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 8px;
+                }
+                .section-critical td { background: #ffebee !important; }
+                .section-warning td { background: #fff3e0 !important; }
+                .section-normal td { background: #e8f5e8 !important; }
+                .cell-critical {
+                    background: #ffcdd2 !important;
+                    font-weight: bold;
+                }
+                .cell-warning {
+                    background: #ffe0b2 !important;
+                    font-weight: bold;
+                }
+                .print-footer {
+                    margin-top: 30px;
+                    text-align: center;
+                    font-size: 10px;
+                    border-top: 1px solid #ccc;
+                    padding-top: 10px;
+                }
+                @media print {
+                    body { margin: 0; padding: 15px; }
+                    .print-footer { page-break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+        printWindow.print();
+        // Close the print window after printing (optional)
+        setTimeout(() => {
+            printWindow.close();
+        }, 1000);
+    }, 500);
+}
+
+// Generate print content
+function generatePrintContent() {
+    if (!currentPatient) return '';
+    
+    const data = currentPatient.partogramData || [];
+    const now = new Date();
+    
+    // Calculate section statuses
+    const motherStatus = calculateSectionStatus(data, 'mother');
+    const fetusStatus = calculateSectionStatus(data, 'fetus');
+    
+    // Patient info
+    const birthYear = new Date().getFullYear() - currentPatient.age;
+    const laborDiagnosisTime = currentPatient.labor_diagnosis_time ? 
+        new Date(currentPatient.labor_diagnosis_time).toLocaleString('vi-VN') :
+        'Chưa xác định';
+    
+    let printHTML = `
+        <div class="print-header">
+            <h1>BỆNH VIỆN HÙNG VƯƠNG</h1>
+            <h2>BIỂU ĐỒ THEO DÕI CHUYỂN DẠ</h2>
+        </div>
+        
+        <div class="patient-info">
+            <div>
+                <strong>Họ tên:</strong> ${currentPatient.name}<br>
+                <strong>Mã BN:</strong> ${currentPatient.id}<br>
+                <strong>Năm sinh:</strong> ${birthYear} (${currentPatient.age} tuổi)
+            </div>
+            <div>
+                <strong>Phòng:</strong> ${currentPatient.room}<br>
+                <strong>Para:</strong> ${currentPatient.parity}<br>
+                <strong>Tuần thai:</strong> ${currentPatient.gestational_week}
+            </div>
+            <div>
+                <strong>Chẩn đoán chuyển dạ:</strong><br>
+                ${laborDiagnosisTime}<br>
+                <strong>In lúc:</strong> ${now.toLocaleString('vi-VN')}
+            </div>
+        </div>
+    `;
+
+    if (data.length === 0) {
+        printHTML += '<p style="text-align: center; font-style: italic; margin: 40px 0;">Chưa có dữ liệu theo dõi</p>';
+    } else {
+        // Create header row with times
+        let tableHTML = '<table><thead><tr><th class="sticky-col">Chỉ số</th>';
+        data.forEach((record, index) => {
+            const recordTime = new Date(record.recorded_at).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            tableHTML += `<th>
+                <div>Lần ${index + 1}</div>
+                <div>${recordTime}</div>
+            </th>`;
+        });
+        tableHTML += '</tr></thead><tbody>';
+        
+        // Helper function to create row
+        const createPrintRow = (label, category, getValue, getClass) => {
+            let row = `<tr class="data-row ${category}">
+                <td class="sticky-col">${label}</td>`;
+            
+            data.forEach(record => {
+                const value = getValue(record);
+                const cellClass = getClass ? getClass(record) : '';
+                row += `<td class="${cellClass}">${value || '-'}</td>`;
+            });
+            
+            row += '</tr>';
+            return row;
+        };
+        
+        // Get cell class based on value and thresholds
+        const getPrintCellClass = (value, thresholds) => {
+            if (!thresholds || value === null || value === undefined) return '';
+            
+            if (thresholds.critical) {
+                for (let condition of thresholds.critical) {
+                    if (condition(value)) return 'cell-critical';
+                }
+            }
+            
+            if (thresholds.warning) {
+                for (let condition of thresholds.warning) {
+                    if (condition(value)) return 'cell-warning';
+                }
+            }
+            
+            return '';
+        };
+        
+        // TÌNH TRẠNG MẸ
+        tableHTML += `<tr class="section-header section-${motherStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG MẸ</td></tr>`;
+        tableHTML += createPrintRow('Mạch (lần/phút)', 'mother', r => r.pulse || r.mother?.pulse,
+            r => getPrintCellClass(r.pulse || r.mother?.pulse, { critical: [(v) => v < 60, (v) => v >= 120] }));
+        tableHTML += createPrintRow('HA tâm thu (mmHg)', 'mother', r => r.systolic_bp || r.mother?.systolic_bp,
+            r => getPrintCellClass(r.systolic_bp || r.mother?.systolic_bp, { critical: [(v) => v < 80, (v) => v >= 140] }));
+        tableHTML += createPrintRow('HA tâm trương (mmHg)', 'mother', r => r.diastolic_bp || r.mother?.diastolic_bp,
+            r => getPrintCellClass(r.diastolic_bp || r.mother?.diastolic_bp, { critical: [(v) => v < 50, (v) => v >= 90] }));
+        tableHTML += createPrintRow('Nhiệt độ (°C)', 'mother', r => r.temperature || r.mother?.temperature,
+            r => getPrintCellClass(r.temperature || r.mother?.temperature, { critical: [(v) => v < 35, (v) => v >= 37.5] }));
+        
+        // TÌNH TRẠNG THAI NHI  
+        tableHTML += `<tr class="section-header section-${fetusStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG THAI NHI</td></tr>`;
+        tableHTML += createPrintRow('Tim thai (lần/phút)', 'fetus', r => r.fetal_heart_rate || r.fetus?.fetal_heart_rate,
+            r => getPrintCellClass(r.fetal_heart_rate || r.fetus?.fetal_heart_rate, { critical: [(v) => v < 110, (v) => v >= 160] }));
+        tableHTML += createPrintRow('CTG', 'fetus', r => r.ctg_score || r.fetus?.ctg_score,
+            r => getPrintCellClass(r.ctg_score || r.fetus?.ctg_score, { critical: [(v) => v === 3], warning: [(v) => v === 2] }));
+        
+        // DIỄN BIẾN CHUYỂN DẠ
+        tableHTML += `<tr class="section-header"><td colspan="${data.length + 1}">DIỄN BIẾN CHUYỂN DẠ</td></tr>`;
+        tableHTML += createPrintRow('Cổ tử cung (cm)', 'labor', r => r.cervix_dilation || r.labor?.cervix_dilation);
+        tableHTML += createPrintRow('Cơn co (TC/10 phút)', 'labor', r => r.contractions_per_10min || r.labor?.contractions_per_10min,
+            r => getPrintCellClass(r.contractions_per_10min || r.labor?.contractions_per_10min, { critical: [(v) => v < 2, (v) => v > 5] }));
+        tableHTML += createPrintRow('Thời gian từ lần trước (h)', 'labor', r => r.time_since_dilation ? r.time_since_dilation.toFixed(1) : '-');
+        
+        tableHTML += '</tbody></table>';
+        
+        printHTML += tableHTML;
+    }
+    
+    printHTML += `
+        <div class="print-footer">
+            Bệnh viện Hùng Vương - Khoa Sản<br>
+            In lúc: ${now.toLocaleString('vi-VN')}
+        </div>
+    `;
+    
+    return printHTML;
+}
+
+// Calculate section status (copy for print usage)
+function calculateSectionStatus(records, sectionType) {
+    if (!records || records.length === 0) return 'normal';
+    
+    if (sectionType === 'fetus') {
+        // CTG có ưu tiên tuyệt đối cho thai nhi
+        for (let record of records) {
+            const ctg = record.ctg_score || record.fetus?.ctg_score;
+            if (ctg === 3) return 'critical';
+            if (ctg === 2) return 'warning';
+        }
+        
+        let totalViolations = 0;
+        let hasCritical = false;
+        
+        records.forEach(record => {
+            const fhr = record.fetal_heart_rate || record.fetus?.fetal_heart_rate;
+            if (fhr && (fhr < 110 || fhr >= 160)) totalViolations++;
+            if (fhr && (fhr < 100 || fhr > 180)) hasCritical = true;
+        });
+        
+        if (hasCritical || totalViolations >= 4) return 'critical';
+        if (totalViolations >= 1) return 'warning';
+        return 'normal';
+    }
+    
+    if (sectionType === 'mother') {
+        let totalViolations = 0;
+        let hasCritical = false;
+        
+        records.forEach(record => {
+            const pulse = record.pulse || record.mother?.pulse;
+            const systolic = record.systolic_bp || record.mother?.systolic_bp;
+            const temperature = record.temperature || record.mother?.temperature;
+            
+            if (pulse && (pulse < 60 || pulse >= 120)) totalViolations++;
+            if (systolic && (systolic < 80 || systolic >= 140)) totalViolations++;
+            if (temperature && (temperature < 35 || temperature >= 37.5)) totalViolations++;
+            
+            if (pulse && (pulse < 50 || pulse > 120)) hasCritical = true;
+            if (systolic && systolic > 160) hasCritical = true;
+            if (temperature && temperature > 38.0) hasCritical = true;
+        });
+        
+        if (hasCritical || totalViolations >= 4) return 'critical';
+        if (totalViolations >= 1) return 'warning';
+        return 'normal';
+    }
+    
+    return 'normal';
 }
 
 // Show toast notification
