@@ -68,6 +68,7 @@ class PartogramRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.String(10), db.ForeignKey('patients.id'), nullable=False)
     recorded_at = db.Column(db.DateTime, nullable=False)
+    examination_time = db.Column(db.String(10))  # Time of examination (HH:MM)
     time_since_dilation = db.Column(db.Float)  # Hours since dilation started
     
     # Supportive Care
@@ -102,6 +103,11 @@ class PartogramRecord(db.Model):
     injection_medication = db.Column(db.Text)
     infusion_medication = db.Column(db.Text)
     
+    # Assessment and evaluation (for convenience - also stored in Assessment table)
+    nurse_assessment = db.Column(db.Text)
+    doctor_assessment = db.Column(db.Text)
+    treatment_plan = db.Column(db.Text)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -112,13 +118,21 @@ class PartogramRecord(db.Model):
             'id': self.id,
             'patient_id': self.patient_id,
             'recorded_at': self.recorded_at.isoformat() if self.recorded_at else None,
+            'examination_time': self.examination_time,
             'time_since_dilation': self.time_since_dilation,
             'supportive_care': {
                 'companion': self.companion,
                 'vas_score': self.vas_score,
+                'vas': self.vas_score,  # Alias for convenience
                 'drinking': self.drinking,
                 'eating': self.eating
             },
+            # Also add flat structure for convenience
+            'companion': self.companion,
+            'vas_score': self.vas_score,
+            'vas': self.vas_score,  # Alias for convenience
+            'drinking': self.drinking,
+            'eating': self.eating,
             'mother': {
                 'pulse': self.pulse,
                 'systolic_bp': self.systolic_bp,
@@ -145,6 +159,15 @@ class PartogramRecord(db.Model):
                 'injection': self.injection_medication,
                 'infusion': self.infusion_medication
             },
+            'assessment': {
+                'nurse_assessment': self.nurse_assessment,
+                'doctor_assessment': self.doctor_assessment,
+                'treatment_plan': self.treatment_plan
+            },
+            # Also add flat structure for convenience
+            'nurse_assessment': self.nurse_assessment,
+            'doctor_assessment': self.doctor_assessment,
+            'treatment_plan': self.treatment_plan,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

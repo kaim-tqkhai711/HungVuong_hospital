@@ -98,11 +98,12 @@ class PartogramService:
         record = PartogramRecord(
             patient_id=patient_id,
             recorded_at=recorded_at,
+            examination_time=record_data.get('examination_time'),
             time_since_dilation=record_data.get('time_since_dilation'),
             
             # Supportive care - flat structure
             companion=record_data.get('companion', False),
-            vas_score=record_data.get('vas_score'),
+            vas_score=record_data.get('vas_score') or record_data.get('vas'),
             drinking=record_data.get('drinking', False),
             eating=record_data.get('eating', False),
             
@@ -130,7 +131,12 @@ class PartogramService:
             # Medication - flat structure
             oral_medication=record_data.get('oral_medication'),
             injection_medication=record_data.get('injection_medication'),
-            infusion_medication=record_data.get('infusion_medication')
+            infusion_medication=record_data.get('infusion_medication'),
+            
+            # Assessment and evaluation - flat structure
+            nurse_assessment=record_data.get('nurse_assessment'),
+            doctor_assessment=record_data.get('doctor_assessment'),
+            treatment_plan=record_data.get('treatment_plan')
         )
         
         db.session.add(record)
