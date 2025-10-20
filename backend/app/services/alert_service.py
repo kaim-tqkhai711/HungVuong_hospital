@@ -237,6 +237,117 @@ class AlertService:
         else:
             return 'normal'    # 🟢 XANH - Không có vi phạm
     
+    def get_current_alerts_for_patient(self, patient_id: str) -> List[Dict]:
+        """Generate current alerts for a patient based on LATEST record only"""
+        from app.models import PartogramRecord
+        
+        # Get the latest partogram record
+        latest_record = PartogramRecord.query.filter_by(patient_id=patient_id)\
+            .order_by(PartogramRecord.recorded_at.desc()).first()
+        
+        if not latest_record:
+            return []
+        
+        current_alerts = []
+        
+        # Check CTG (highest priority for fetus)
+        if latest_record.ctg_score is not None:
+            if latest_record.ctg_score >= 3:
+                current_alerts.append({
+                    'alert_type': 'fetus',
+                    'severity': 'critical',
+                    'parameter': 'ctg',
+                    'value': str(latest_record.ctg_score),
+                    'message': f"CTG cấp {latest_record.ctg_score} - Nguy hiểm, cần can thiệp ngay"
+                })
+            elif latest_record.ctg_score >= 2:
+                current_alerts.append({
+                    'alert_type': 'fetus',
+                    'severity': 'warning',
+                    'parameter': 'ctg',
+                    'value': str(latest_record.ctg_score),
+                    'message': f"CTG cấp {latest_record.ctg_score} - Cần theo dõi thêm"
+                })
+        
+        # Check mother's vitals
+        if latest_record.pulse:
+            if latest_record.pulse < 60 or latest_record.pulse >= 120:
+                severity = 'critical' if latest_record.pulse < 50 or latest_record.pulse > 120 else 'warning'
+                current_alerts.append({
+                    'alert_type': 'mother',
+                    'severity': severity,
+                    'parameter': 'pulse',
+                    'value': str(latest_record.pulse),
+                    'message': f"Mạch {latest_record.pulse} bpm - Ngoài phạm vi bình thường (60-100 bpm)"
+                })
+        
+        if latest_record.systolic_bp:
+            if latest_record.systolic_bp < 80 or latest_record.systolic_bp >= 140:
+                severity = 'critical' if latest_record.systolic_bp > 160 else 'warning'
+                current_alerts.append({
+                    'alert_type': 'mother',
+                    'severity': severity,
+                    'parameter': 'systolic_bp',
+                    'value': str(latest_record.systolic_bp),
+                    'message': f"Huyết áp tâm thu {latest_record.systolic_bp} mmHg - {'Cao' if latest_record.systolic_bp >= 140 else 'Thấp'} hơn bình thường"
+                })
+        
+        if latest_record.temperature:
+            if latest_record.temperature < 35 or latest_record.temperature >= 37.5:
+                severity = 'critical' if latest_record.temperature > 38.0 else 'warning'
+                current_alerts.append({
+                    'alert_type': 'mother',
+                    'severity': severity,
+                    'parameter': 'temperature',
+                    'value': str(latest_record.temperature),
+                    'message': f"Nhiệt độ {latest_record.temperature}°C - {'Sốt' if latest_record.temperature >= 37.5 else 'Hạ thân nhiệt'}"
+                })
+        
+        # Check fetal heart rate
+        if latest_record.fetal_heart_rate:
+            if latest_record.fetal_heart_rate < 110 or latest_record.fetal_heart_rate >= 160:
+                severity = 'critical' if latest_record.fetal_heart_rate < 100 or latest_record.fetal_heart_rate > 180 else 'warning'
+                current_alerts.append({
+                    'alert_type': 'fetus',
+                    'severity': severity,
+                    'parameter': 'fetal_heart_rate',
+                    'value': str(latest_record.fetal_heart_rate),
+                    'message': f"Tim thai {latest_record.fetal_heart_rate} bpm - Ngoài phạm vi bình thường (110-160 bpm)"
+                })
+        
+        # Check contractions
+        if latest_record.contractions_per_10min:
+            if latest_record.contractions_per_10min < 2 or latest_record.contractions_per_10min > 5:
+                current_alerts.append({
+                    'alert_type': 'labor',
+                    'severity': 'warning',
+                    'parameter': 'contractions',
+                    'value': str(latest_record.contractions_per_10min),
+                    'message': f"Cơn co {latest_record.contractions_per_10min} TC/10 phút - {'Quá ít' if latest_record.contractions_per_10min < 2 else 'Quá nhiều'}"
+                })
+        
+        return current_alerts
+    
+    def get_patient_alerts_latest_only(self, patient_id: str) -> List[Alert]:
+        """Get alerts for a patient from the LATEST partogram record only"""
+        from app.models import PartogramRecord
+        
+        # Get the latest partogram record
+        latest_record = PartogramRecord.query.filter_by(patient_id=patient_id)\
+            .order_by(PartogramRecord.recorded_at.desc()).first()
+        
+        if not latest_record:
+            return []
+        
+        # Get alerts only from the latest record
+        alerts = Alert.query.filter(
+            Alert.patient_id == patient_id,
+            Alert.partogram_record_id == latest_record.id,
+            Alert.is_acknowledged == False
+        ).order_by(Alert.created_at.desc()).all()
+        
+        return alerts
+    
     def get_patient_alerts(self, patient_id: str, include_acknowledged: bool = False) -> List[Alert]:
         """Get all alerts for a patient"""
         query = Alert.query.filter_by(patient_id=patient_id)

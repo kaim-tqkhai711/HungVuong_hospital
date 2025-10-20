@@ -51,9 +51,9 @@ class PartogramService:
             else:
                 patient_dict['last_check'] = "Chưa có dữ liệu"
             
-            # Add current alerts
-            alerts = self.alert_service.get_patient_alerts(patient.id)
-            patient_dict['alerts'] = [alert.to_dict() for alert in alerts[:3]]  # Latest 3 alerts
+            # Add current alerts - CHỈ TÍNH TOÁN TỪ LATEST RECORD
+            current_alerts = self.alert_service.get_current_alerts_for_patient(patient.id)
+            patient_dict['alerts'] = current_alerts[:3]  # Top 3 current alerts from latest record only
             
             result.append(patient_dict)
         
