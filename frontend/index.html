@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống theo dõi Chuyển dạ - Bệnh viện Hùng Vương</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Component -->
+        <header class="header">
+            <div class="hospital-info">
+                <h1>Bệnh viện Hùng Vương</h1>
+                <p class="department">Khoa Sanh - Hệ thống theo dõi Chuyển dạ</p>
+            </div>
+            <div class="datetime-info">
+                <div class="date" id="currentDate"></div>
+                <div class="time" id="currentTime"></div>
+            </div>
+        </header>
+
+        <!-- Status Summary Component -->
+        <div class="status-summary">
+            <div class="status-card critical">
+                <div class="status-icon">🔴</div>
+                <div class="status-info">
+                    <div class="status-count" id="criticalCount">0</div>
+                    <div class="status-label">Nghiêm trọng</div>
+                </div>
+            </div>
+            <div class="status-card warning">
+                <div class="status-icon">🟡</div>
+                <div class="status-info">
+                    <div class="status-count" id="warningCount">0</div>
+                    <div class="status-label">Cần theo dõi</div>
+                </div>
+            </div>
+            <div class="status-card normal">
+                <div class="status-icon">🟢</div>
+                <div class="status-info">
+                    <div class="status-count" id="normalCount">0</div>
+                    <div class="status-label">Bình thường</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs and Add Patient Button -->
+        <div class="tabs-and-actions">
+            <div class="filter-tabs">
+                <button class="tab-btn active" data-filter="all">Tất cả</button>
+                <button class="tab-btn" data-filter="critical">Nghiêm trọng</button>
+                <button class="tab-btn" data-filter="warning">Cần theo dõi</button>
+                <button class="tab-btn" data-filter="normal">Bình thường</button>
+            </div>
+            <div class="page-actions">
+                <button class="btn-add-patient" id="btnAddPatient">+ Thêm bệnh nhân mới</button>
+            </div>
+        </div>
+
+        <!-- Patient List Component -->
+        <div class="patient-list" id="patientList">
+            <!-- Patient cards will be dynamically loaded -->
+        </div>
+    </div>
+
+    <!-- Modal Component -->
+    <div class="modal" id="quickViewModal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModal">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Add Patient Modal -->
+    <div class="modal" id="addPatientModal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeAddPatientModal">&times;</span>
+            <h2>➕ Thêm bệnh nhân mới</h2>
+            <div id="addPatientForm"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/services/apiService.js"></script>
+    <script src="src/utils/dateUtils.js"></script>
+    <script src="src/utils/alertUtils.js"></script>
+    <script src="src/components/patientCard.js"></script>
+    <script src="src/components/statusSummary.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>

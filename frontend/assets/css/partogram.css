@@ -1,0 +1,488 @@
+/* Partogram Timeline and Chart Styles */
+
+.partogram-container {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+.partogram-header {
+    padding: 25px;
+    border-bottom: 2px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.partogram-header h2 {
+    color: var(--gray-800);
+    font-size: 22px;
+}
+
+.partogram-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--gray-100);
+    padding: 8px 12px;
+    border-radius: var(--border-radius-sm);
+}
+
+.btn-zoom {
+    background: var(--white);
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+.btn-zoom:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-400);
+}
+
+.zoom-level {
+    font-weight: 600;
+    color: var(--gray-700);
+    min-width: 40px;
+    text-align: center;
+}
+
+.btn-add-record, .btn-print, .btn-toggle-view {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 10px 15px;
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-add-record:hover, .btn-print:hover, .btn-toggle-view:hover {
+    background: #c084c1;
+    transform: translateY(-2px);
+}
+
+/* Timeline Container */
+.timeline-container {
+    padding: 20px;
+    background: var(--gray-50, #f9fafb);
+    border-bottom: 1px solid var(--gray-200);
+    overflow-x: auto;
+    min-height: 600px;
+}
+
+.timeline-wrapper {
+    min-width: 1200px;
+    position: relative;
+}
+
+.timeline-header {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    margin-bottom: 20px;
+}
+
+.timeline-labels {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.timeline-label {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    background: var(--gray-200);
+    border: 1px solid var(--gray-300);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.timeline-grid {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 0;
+}
+
+.timeline-axis {
+    display: flex;
+    border-bottom: 2px solid var(--gray-400);
+    height: 50px;
+}
+
+.time-marker {
+    flex: 1;
+    border-right: 1px solid var(--gray-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-600);
+    min-width: 60px;
+}
+
+.time-marker.major {
+    border-right: 2px solid var(--gray-400);
+    background: var(--gray-100);
+    font-weight: 700;
+}
+
+.timeline-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.timeline-row {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    border-bottom: 1px solid var(--gray-200);
+    min-height: 40px;
+}
+
+.row-label {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    background: var(--gray-100);
+    border-right: 1px solid var(--gray-300);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.row-data {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--white);
+}
+
+.data-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--white);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.data-point:hover {
+    transform: scale(1.5);
+    z-index: 10;
+}
+
+.data-point.normal {
+    background: var(--success-color);
+}
+
+.data-point.warning {
+    background: var(--warning-color);
+    animation: pulse-warning 2s infinite;
+}
+
+.data-point.critical {
+    background: var(--danger-color);
+    animation: pulse-critical 1s infinite;
+}
+
+.data-line {
+    position: absolute;
+    height: 2px;
+    background: var(--gray-400);
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.data-line.normal {
+    background: var(--success-color);
+}
+
+.data-line.warning {
+    background: var(--warning-color);
+}
+
+.data-line.critical {
+    background: var(--danger-color);
+}
+
+/* Value Labels on Timeline */
+.value-label {
+    position: absolute;
+    background: var(--gray-800);
+    color: var(--white);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    transform: translate(-50%, -120%);
+    opacity: 0;
+    transition: var(--transition);
+    pointer-events: none;
+    z-index: 20;
+}
+
+.data-point:hover .value-label {
+    opacity: 1;
+}
+
+/* Cervix Dilation Special Chart */
+.cervix-chart {
+    grid-column: 1 / -1;
+    height: 120px;
+    background: var(--white);
+    border: 2px solid var(--gray-300);
+    border-radius: var(--border-radius-sm);
+    margin: 10px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.cervix-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.cervix-line {
+    stroke: var(--primary-color);
+    stroke-width: 3;
+    fill: none;
+}
+
+.cervix-area {
+    fill: rgba(221, 148, 222, 0.1);
+}
+
+.alert-zone {
+    fill: rgba(245, 101, 101, 0.1);
+    stroke: var(--danger-color);
+    stroke-width: 1;
+    stroke-dasharray: 5,5;
+}
+
+/* Table View */
+.table-header {
+    padding: 20px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.table-header h3 {
+    color: var(--gray-800);
+    font-size: 18px;
+}
+
+.partogram-table-wrapper {
+    padding: 0;
+    overflow-x: auto;
+    background: var(--white);
+}
+
+.partogram-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 1400px;
+}
+
+.partogram-table th {
+    background: var(--gray-100);
+    padding: 12px 8px;
+    border: 1px solid var(--gray-300);
+    font-weight: 600;
+    color: var(--gray-700);
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.partogram-table td {
+    padding: 10px 8px;
+    border: 1px solid var(--gray-300);
+    text-align: center;
+    background: var(--white);
+    position: relative;
+}
+
+.partogram-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+/* Alert highlighting in table */
+.table-cell-critical {
+    background: var(--danger-light) !important;
+    color: #c53030 !important;
+    font-weight: 700;
+    border: 2px solid var(--danger-color) !important;
+}
+
+.table-cell-warning {
+    background: var(--warning-light) !important;
+    color: #b7791f !important;
+    font-weight: 700;
+    border: 2px solid var(--warning-color) !important;
+}
+
+.table-cell-normal {
+    background: var(--success-light);
+    color: #276749;
+}
+
+/* Column Groups */
+.col-time {
+    background: var(--gray-200) !important;
+    font-weight: 600;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+}
+
+.col-mother {
+    background: #fef5e7;
+}
+
+.col-fetus {
+    background: #e6fffa;
+}
+
+.col-labor {
+    background: #f0fff4;
+}
+
+.col-medication {
+    background: #faf5ff;
+}
+
+.col-assessment {
+    background: #fff5f5;
+}
+
+/* Animations */
+@keyframes pulse-warning {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(236, 201, 75, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(236, 201, 75, 0);
+    }
+}
+
+@keyframes pulse-critical {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 101, 101, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 15px rgba(245, 101, 101, 0);
+    }
+}
+
+/* Threshold Indicators */
+.threshold-line {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background: var(--danger-color);
+    border-top: 2px dashed var(--danger-color);
+    opacity: 0.6;
+    z-index: 1;
+}
+
+.threshold-label {
+    position: absolute;
+    right: 10px;
+    background: var(--danger-color);
+    color: var(--white);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+/* CTG Status Indicators */
+.ctg-indicator {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.ctg-0, .ctg-1 {
+    background: var(--success-light);
+    color: #276749;
+}
+
+.ctg-2 {
+    background: var(--warning-light);
+    color: #b7791f;
+}
+
+.ctg-3 {
+    background: var(--danger-light);
+    color: #c53030;
+}
+
+/* Responsive Partogram */
+@media (max-width: 768px) {
+    .partogram-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .partogram-controls {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .timeline-container {
+        padding: 10px;
+    }
+    
+    .timeline-wrapper {
+        min-width: 800px;
+    }
+    
+    .zoom-controls {
+        order: -1;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .partogram-table {
+        font-size: 11px;
+    }
+    
+    .partogram-table th,
+    .partogram-table td {
+        padding: 6px 4px;
+    }
+}

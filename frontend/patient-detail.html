@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ theo dõi chuyển dạ - Bệnh viện Hùng Vương</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="hospital-info">
+                <h1>Bệnh viện Hùng Vương</h1>
+                <p class="department">Khoa Sản - Biểu đồ theo dõi chuyển dạ</p>
+            </div>
+            <div class="datetime-info">
+                <div class="date" id="currentDate"></div>
+                <div class="time" id="currentTime"></div>
+            </div>
+        </header>
+
+        <!-- Back Button -->
+        <div class="back-nav">
+            <button onclick="window.location.href='index.html'" class="btn-back">
+                ← Quay lại danh sách
+            </button>
+            <button class="btn-overview" id="btnOverview">
+                📊 Xem tổng quan lần khám
+            </button>
+        </div>
+
+        <!-- Patient Basic Info -->
+        <div class="patient-header-card" id="patientHeaderCard">
+            <!-- Will be loaded dynamically -->
+        </div>
+
+        <!-- Partogram Chart -->
+        <div class="partogram-container">
+            <div class="partogram-header">
+                <h2>Biểu đồ theo dõi chuyển dạ</h2>
+                <div class="partogram-actions">
+                    <button class="btn-add-record" id="btnAddRecord">+ Thêm lần khám</button>
+                    <button class="btn-print">🖨️ In biểu đồ</button>
+                </div>
+            </div>
+
+            <!-- Partogram Table -->
+            <div class="partogram-table-wrapper">
+                <table class="partogram-table" id="partogramTable">
+                    <!-- Will be loaded dynamically -->
+                </table>
+            </div>
+        </div>
+
+        <!-- Outcome Section -->
+        <div class="outcome-section">
+            <h3 class="section-title">🎯 Kết cục</h3>
+            <div class="outcome-card">
+                <div class="outcome-options">
+                    <div class="outcome-group">
+                        <h4>Sinh âm đạo</h4>
+                        <label><input type="radio" name="outcome" value="sinh-thuong"> Sinh thường</label>
+                        <label><input type="radio" name="outcome" value="sinh-thuong-cat"> Sinh thường + cắt tầng sinh môn</label>
+                        <label><input type="radio" name="outcome" value="sinh-hut"> Sinh hút</label>
+                        <label><input type="radio" name="outcome" value="sinh-hut-cat"> Sinh hút + cắt tầng sinh môn</label>
+                        <label><input type="radio" name="outcome" value="sinh-kem"> Sinh kềm</label>
+                        <label><input type="radio" name="outcome" value="sinh-kem-cat"> Sinh kềm + cắt tầng sinh môn</label>
+                    </div>
+                    <div class="outcome-group">
+                        <h4>Sinh mổ</h4>
+                        <label><input type="radio" name="outcome" value="mo-cap"> Cấp</label>
+                        <label><input type="radio" name="outcome" value="mo-khan-cap"> Khẩn cấp</label>
+                        <label><input type="radio" name="outcome" value="mo-ban-cap"> Bán cấp</label>
+                    </div>
+                    <div class="outcome-group">
+                        <h4>Khác</h4>
+                        <label><input type="radio" name="outcome" value="khac"> Khác</label>
+                        <input type="text" class="outcome-other-input" id="outcomeOther" placeholder="Ghi rõ...">
+                    </div>
+                </div>
+                <button class="btn-save-outcome" id="btnSaveOutcome">💾 Lưu kết cục</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overview Modal -->
+    <div class="modal" id="overviewModal">
+        <div class="modal-content large">
+            <span class="close-btn" id="closeOverviewModal">&times;</span>
+            <h2>📊 Tổng quan lần khám</h2>
+            <div id="overviewContent"></div>
+        </div>
+    </div>
+
+    <!-- Add Record Modal -->
+    <div class="modal" id="addRecordModal">
+        <div class="modal-content large">
+            <span class="close-btn" id="closeAddRecordModal">&times;</span>
+            <h2>➕ Thêm lần khám mới</h2>
+            <div id="addRecordForm"></div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
+
+    <script src="src/services/apiService.js"></script>
+    <script src="src/utils/dateUtils.js"></script>
+    <script src="src/utils/alertUtils.js"></script>
+    <script src="assets/js/patient-detail.js"></script>
+    <script>
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePatientDetail();
+        });
+    </script>
+</body>
+</html>
