@@ -210,13 +210,22 @@ function renderPartogramTable(patient) {
     // Create header row with times
     let headerHTML = '<thead><tr class="time-header"><th class="sticky-col">Chỉ số</th>';
     data.forEach((record, index) => {
-        const recordTime = new Date(record.recorded_at).toLocaleTimeString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        // Use examination_time if available, otherwise fall back to recorded_at
+        let displayTime;
+        if (record.examination_time) {
+            // If examination_time is just time (HH:MM), use it directly
+            displayTime = record.examination_time.length <= 5 ? record.examination_time : 
+                new Date(record.examination_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            displayTime = new Date(record.recorded_at).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
         headerHTML += `<th class="time-col">
             <div class="visit-label">Lần ${index + 1}</div>
-            <div class="time-value">${recordTime}</div>
+            <div class="time-value">${displayTime}</div>
         </th>`;
     });
     headerHTML += '</tr></thead>';
@@ -320,6 +329,13 @@ function renderPartogramTable(patient) {
     const motherStatus = calculateSectionStatus(data, 'mother');
     const fetusStatus = calculateSectionStatus(data, 'fetus');
     
+    // CHĂM SÓC HỖ TRỢ
+    bodyHTML += `<tr class="section-header"><td colspan="${data.length + 1}">CHĂM SÓC HỖ TRỢ</td></tr>`;
+    bodyHTML += createRow('Bạn đồng hành', 'support', r => (r.companion !== undefined) ? (r.companion ? 'Có' : 'Không') : '-');
+    bodyHTML += createRow('VAS (0-10)', 'support', r => r.vas_score || r.vas || '-');
+    bodyHTML += createRow('Uống nước', 'support', r => (r.drinking !== undefined) ? (r.drinking ? 'Có' : 'Không') : '-');
+    bodyHTML += createRow('Ăn', 'support', r => (r.eating !== undefined) ? (r.eating ? 'Có' : 'Không') : '-');
+
     // TÌNH TRẠNG MẸ
     bodyHTML += `<tr class="section-header section-${motherStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG MẸ</td></tr>`;
     bodyHTML += createRow('Mạch (lần/phút)', 'mother', r => r.pulse || r.mother?.pulse,
@@ -330,6 +346,7 @@ function renderPartogramTable(patient) {
         r => getCellClass(r.diastolic_bp || r.mother?.diastolic_bp, { critical: [(v) => v < 50, (v) => v >= 90] }));
     bodyHTML += createRow('Nhiệt độ (°C)', 'mother', r => r.temperature || r.mother?.temperature,
         r => getCellClass(r.temperature || r.mother?.temperature, { critical: [(v) => v < 35, (v) => v >= 37.5] }));
+    bodyHTML += createRow('Nước tiểu', 'mother', r => r.urine || r.mother?.urine || '-');
     
     // TÌNH TRẠNG THAI NHI  
     bodyHTML += `<tr class="section-header section-${fetusStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG THAI NHI</td></tr>`;
@@ -337,13 +354,40 @@ function renderPartogramTable(patient) {
         r => getCellClass(r.fetal_heart_rate || r.fetus?.fetal_heart_rate, { critical: [(v) => v < 110, (v) => v >= 160] }));
     bodyHTML += createRow('CTG', 'fetus', r => r.ctg_score || r.fetus?.ctg_score,
         r => getCellClass(r.ctg_score || r.fetus?.ctg_score, { critical: [(v) => v === 3], warning: [(v) => v === 2] }));
+    bodyHTML += createRow('Nước ối', 'fetus', r => r.amniotic_fluid || r.fetus?.amniotic_fluid || '-');
+    bodyHTML += createRow('Kiểu thế', 'fetus', r => r.fetal_position || r.fetus?.fetal_position || '-');
+    bodyHTML += createRow('Bướu HT', 'fetus', r => r.caput || r.fetus?.caput || '-');
+    bodyHTML += createRow('Chống khớp', 'fetus', r => r.molding || r.fetus?.molding || '-');
     
     // DIỄN BIẾN CHUYỂN DẠ
     bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">DIỄN BIẾN CHUYỂN DẠ</td></tr>';
-    bodyHTML += createRow('Cổ tử cung (cm)', 'labor', r => r.cervix_dilation || r.labor?.cervix_dilation);
     bodyHTML += createRow('Cơn co (TC/10 phút)', 'labor', r => r.contractions_per_10min || r.labor?.contractions_per_10min,
         r => getCellClass(r.contractions_per_10min || r.labor?.contractions_per_10min, { critical: [(v) => v < 2, (v) => v > 5] }));
+    bodyHTML += createRow('Thời gian cơn co (s)', 'labor', r => r.contraction_duration || r.labor?.contraction_duration || '-');
+    bodyHTML += createRow('Cổ tử cung (cm)', 'labor', r => r.cervix_dilation || r.labor?.cervix_dilation);
+    bodyHTML += createRow('Độ lọt', 'labor', r => r.station || r.labor?.station || '-');
     bodyHTML += createRow('Thời gian từ lần trước (h)', 'labor', r => r.time_since_dilation ? r.time_since_dilation.toFixed(1) : '-');
+
+    // SỬ DỤNG THUỐC
+    bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">SỬ DỤNG THUỐC</td></tr>';
+    bodyHTML += createRow('Uống', 'medication', r => r.oral_medication || r.medication?.oral || '-');
+    bodyHTML += createRow('Tiêm', 'medication', r => r.injection_medication || r.medication?.injection || '-');
+    bodyHTML += createRow('Truyền', 'medication', r => r.infusion_medication || r.medication?.infusion || '-');
+
+    // NHẬN ĐỊNH VÀ ĐÁNH GIÁ
+    bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">NHẬN ĐỊNH VÀ ĐÁNH GIÁ</td></tr>';
+    bodyHTML += createRow('Nhận định Nữ hộ sinh', 'assessment', r => {
+        const assessment = r.nurse_assessment || r.assessment?.nurse_assessment || '-';
+        return assessment.length > 30 ? assessment.substring(0, 30) + '...' : assessment;
+    });
+    bodyHTML += createRow('Nhận định Bác sĩ', 'assessment', r => {
+        const assessment = r.doctor_assessment || r.assessment?.doctor_assessment || '-';
+        return assessment.length > 30 ? assessment.substring(0, 30) + '...' : assessment;
+    });
+    bodyHTML += createRow('Kế hoạch xử trí', 'assessment', r => {
+        const plan = r.treatment_plan || r.assessment?.treatment_plan || '-';
+        return plan.length > 30 ? plan.substring(0, 30) + '...' : plan;
+    });
     
     bodyHTML += '</tbody>';
     
@@ -1001,13 +1045,21 @@ function generatePrintContent() {
         // Create header row with times
         let tableHTML = '<table><thead><tr><th class="sticky-col">Chỉ số</th>';
         data.forEach((record, index) => {
-            const recordTime = new Date(record.recorded_at).toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            // Use examination_time if available, otherwise fall back to recorded_at
+            let displayTime;
+            if (record.examination_time) {
+                displayTime = record.examination_time.length <= 5 ? record.examination_time : 
+                    new Date(record.examination_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                displayTime = new Date(record.recorded_at).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+            
             tableHTML += `<th>
                 <div>Lần ${index + 1}</div>
-                <div>${recordTime}</div>
+                <div>${displayTime}</div>
             </th>`;
         });
         tableHTML += '</tr></thead><tbody>';
@@ -1046,6 +1098,13 @@ function generatePrintContent() {
             return '';
         };
         
+        // CHĂM SÓC HỖ TRỢ
+        tableHTML += `<tr class="section-header"><td colspan="${data.length + 1}">CHĂM SÓC HỖ TRỢ</td></tr>`;
+        tableHTML += createPrintRow('Bạn đồng hành', 'support', r => (r.companion !== undefined) ? (r.companion ? 'Có' : 'Không') : '-');
+        tableHTML += createPrintRow('VAS (0-10)', 'support', r => r.vas_score || r.vas || '-');
+        tableHTML += createPrintRow('Uống nước', 'support', r => (r.drinking !== undefined) ? (r.drinking ? 'Có' : 'Không') : '-');
+        tableHTML += createPrintRow('Ăn', 'support', r => (r.eating !== undefined) ? (r.eating ? 'Có' : 'Không') : '-');
+
         // TÌNH TRẠNG MẸ
         tableHTML += `<tr class="section-header section-${motherStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG MẸ</td></tr>`;
         tableHTML += createPrintRow('Mạch (lần/phút)', 'mother', r => r.pulse || r.mother?.pulse,
@@ -1056,6 +1115,7 @@ function generatePrintContent() {
             r => getPrintCellClass(r.diastolic_bp || r.mother?.diastolic_bp, { critical: [(v) => v < 50, (v) => v >= 90] }));
         tableHTML += createPrintRow('Nhiệt độ (°C)', 'mother', r => r.temperature || r.mother?.temperature,
             r => getPrintCellClass(r.temperature || r.mother?.temperature, { critical: [(v) => v < 35, (v) => v >= 37.5] }));
+        tableHTML += createPrintRow('Nước tiểu', 'mother', r => r.urine || r.mother?.urine || '-');
         
         // TÌNH TRẠNG THAI NHI  
         tableHTML += `<tr class="section-header section-${fetusStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG THAI NHI</td></tr>`;
@@ -1063,13 +1123,40 @@ function generatePrintContent() {
             r => getPrintCellClass(r.fetal_heart_rate || r.fetus?.fetal_heart_rate, { critical: [(v) => v < 110, (v) => v >= 160] }));
         tableHTML += createPrintRow('CTG', 'fetus', r => r.ctg_score || r.fetus?.ctg_score,
             r => getPrintCellClass(r.ctg_score || r.fetus?.ctg_score, { critical: [(v) => v === 3], warning: [(v) => v === 2] }));
+        tableHTML += createPrintRow('Nước ối', 'fetus', r => r.amniotic_fluid || r.fetus?.amniotic_fluid || '-');
+        tableHTML += createPrintRow('Kiểu thế', 'fetus', r => r.fetal_position || r.fetus?.fetal_position || '-');
+        tableHTML += createPrintRow('Bướu HT', 'fetus', r => r.caput || r.fetus?.caput || '-');
+        tableHTML += createPrintRow('Chống khớp', 'fetus', r => r.molding || r.fetus?.molding || '-');
         
         // DIỄN BIẾN CHUYỂN DẠ
         tableHTML += `<tr class="section-header"><td colspan="${data.length + 1}">DIỄN BIẾN CHUYỂN DẠ</td></tr>`;
-        tableHTML += createPrintRow('Cổ tử cung (cm)', 'labor', r => r.cervix_dilation || r.labor?.cervix_dilation);
         tableHTML += createPrintRow('Cơn co (TC/10 phút)', 'labor', r => r.contractions_per_10min || r.labor?.contractions_per_10min,
             r => getPrintCellClass(r.contractions_per_10min || r.labor?.contractions_per_10min, { critical: [(v) => v < 2, (v) => v > 5] }));
+        tableHTML += createPrintRow('Thời gian cơn co (s)', 'labor', r => r.contraction_duration || r.labor?.contraction_duration || '-');
+        tableHTML += createPrintRow('Cổ tử cung (cm)', 'labor', r => r.cervix_dilation || r.labor?.cervix_dilation);
+        tableHTML += createPrintRow('Độ lọt', 'labor', r => r.station || r.labor?.station || '-');
         tableHTML += createPrintRow('Thời gian từ lần trước (h)', 'labor', r => r.time_since_dilation ? r.time_since_dilation.toFixed(1) : '-');
+
+        // SỬ DỤNG THUỐC
+        tableHTML += `<tr class="section-header"><td colspan="${data.length + 1}">SỬ DỤNG THUỐC</td></tr>`;
+        tableHTML += createPrintRow('Uống', 'medication', r => r.oral_medication || r.medication?.oral || '-');
+        tableHTML += createPrintRow('Tiêm', 'medication', r => r.injection_medication || r.medication?.injection || '-');
+        tableHTML += createPrintRow('Truyền', 'medication', r => r.infusion_medication || r.medication?.infusion || '-');
+
+        // NHẬN ĐỊNH VÀ ĐÁNH GIÁ
+        tableHTML += `<tr class="section-header"><td colspan="${data.length + 1}">NHẬN ĐỊNH VÀ ĐÁNH GIÁ</td></tr>`;
+        tableHTML += createPrintRow('Nhận định Nữ hộ sinh', 'assessment', r => {
+            const assessment = r.nurse_assessment || r.assessment?.nurse_assessment || '-';
+            return assessment.length > 50 ? assessment.substring(0, 50) + '...' : assessment;
+        });
+        tableHTML += createPrintRow('Nhận định Bác sĩ', 'assessment', r => {
+            const assessment = r.doctor_assessment || r.assessment?.doctor_assessment || '-';
+            return assessment.length > 50 ? assessment.substring(0, 50) + '...' : assessment;
+        });
+        tableHTML += createPrintRow('Kế hoạch xử trí', 'assessment', r => {
+            const plan = r.treatment_plan || r.assessment?.treatment_plan || '-';
+            return plan.length > 50 ? plan.substring(0, 50) + '...' : plan;
+        });
         
         tableHTML += '</tbody></table>';
         

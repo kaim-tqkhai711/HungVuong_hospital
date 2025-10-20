@@ -518,10 +518,12 @@
 
 .partogram-table th,
 .partogram-table td {
-    padding: 12px 8px;
+    padding: 8px 6px;
     text-align: center;
     border: 1px solid var(--gray-300);
     vertical-align: middle;
+    font-size: 12px;
+    line-height: 1.3;
 }
 
 .sticky-col {
@@ -530,8 +532,11 @@
     background: var(--gray-100);
     font-weight: 600;
     text-align: left;
-    min-width: 200px;
+    min-width: 180px;
+    max-width: 200px;
     z-index: 10;
+    font-size: 11px;
+    padding-left: 8px;
 }
 
 .time-header th {
@@ -541,16 +546,18 @@
 }
 
 .time-col {
-    min-width: 100px;
+    min-width: 80px;
+    max-width: 90px;
 }
 
 .visit-label {
-    font-size: 11px;
+    font-size: 10px;
     opacity: 0.9;
+    margin-bottom: 2px;
 }
 
 .time-value {
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
 }
 
@@ -964,5 +971,29 @@
     
     .form-row {
         grid-template-columns: 1fr;
+    }
+    
+    /* Responsive table adjustments */
+    .partogram-table th,
+    .partogram-table td {
+        padding: 4px 3px;
+        font-size: 10px;
+    }
+    
+    .sticky-col {
+        min-width: 120px;
+        font-size: 9px;
+    }
+    
+    .time-col {
+        min-width: 60px;
+    }
+    
+    .visit-label {
+        font-size: 9px;
+    }
+    
+    .time-value {
+        font-size: 10px;
     }
 }
