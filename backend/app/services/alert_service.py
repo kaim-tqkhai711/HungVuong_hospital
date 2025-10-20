@@ -177,37 +177,65 @@ class AlertService:
         return alerts
     
     def calculate_patient_status(self, patient_id: str) -> str:
-        """Calculate overall patient status based on recent alerts"""
-        # Get recent alerts (last 4 hours)
-        cutoff_time = datetime.utcnow() - timedelta(hours=4)
-        recent_alerts = Alert.query.filter(
-            Alert.patient_id == patient_id,
-            Alert.created_at >= cutoff_time,
-            Alert.is_acknowledged == False
-        ).all()
+        """Calculate overall patient status based on LATEST partogram record only"""
+        from app.models import PartogramRecord
         
-        # 🔥 RULE 1: CTG Score có ưu tiên tuyệt đối
-        ctg_alerts = [a for a in recent_alerts if a.parameter == 'ctg']
-        if ctg_alerts:
-            latest_ctg = ctg_alerts[0]  # Lấy CTG mới nhất
-            if latest_ctg.severity == 'critical':  # CTG = 3
-                return 'critical'  # 🔴 ĐỎ - Toàn bộ thai nhi = ĐỎ
-            elif latest_ctg.severity == 'warning':  # CTG = 2
-                return 'warning'   # 🟡 VÀNG - Toàn bộ thai nhi = VÀNG
+        # 🚨 FIX: Get only the LATEST partogram record instead of all recent alerts
+        latest_record = PartogramRecord.query.filter_by(patient_id=patient_id)\
+            .order_by(PartogramRecord.recorded_at.desc()).first()
         
-        # 🔥 RULE 2: Đếm số lần vượt ngưỡng của MẸ (không tính CTG)
-        mother_alerts = [a for a in recent_alerts if a.alert_type == 'mother']
-        critical_count = len([a for a in mother_alerts if a.severity == 'critical'])
-        warning_count = len([a for a in mother_alerts if a.severity == 'warning'])
-        total_violations = critical_count + warning_count
+        if not latest_record:
+            return 'normal'
         
-        # 🔥 RULE 3: Áp dụng quy tắc theo số lần vi phạm
-        if critical_count > 0 or total_violations >= 4:
-            return 'critical'  # 🔴 ĐỎ - 4-5 lần hoặc có Critical
-        elif total_violations >= 1:
-            return 'warning'   # 🟡 VÀNG - 1-3 lần
+        # 🔥 RULE 1: CTG Score có ưu tiên tuyệt đối cho thai nhi
+        if latest_record.ctg_score is not None:
+            if latest_record.ctg_score >= 3:  # CTG = 3
+                return 'critical'  # 🔴 ĐỎ - Nguy hiểm
+            elif latest_record.ctg_score >= 2:  # CTG = 2
+                return 'warning'   # 🟡 VÀNG - Cần theo dõi
+        
+        # 🔥 RULE 2: Kiểm tra chỉ số của record cuối cùng
+        violations = 0
+        critical_violations = 0
+        
+        # Check mother's vitals from latest record
+        if latest_record.pulse:
+            if latest_record.pulse < 50 or latest_record.pulse > 120:
+                critical_violations += 1
+            elif latest_record.pulse < 60 or latest_record.pulse >= 120:
+                violations += 1
+        
+        if latest_record.systolic_bp:
+            if latest_record.systolic_bp > 160:
+                critical_violations += 1
+            elif latest_record.systolic_bp < 80 or latest_record.systolic_bp >= 140:
+                violations += 1
+        
+        if latest_record.temperature:
+            if latest_record.temperature > 38.0:
+                critical_violations += 1
+            elif latest_record.temperature < 35 or latest_record.temperature >= 37.5:
+                violations += 1
+        
+        # Check fetal heart rate from latest record
+        if latest_record.fetal_heart_rate:
+            if latest_record.fetal_heart_rate < 100 or latest_record.fetal_heart_rate > 180:
+                critical_violations += 1
+            elif latest_record.fetal_heart_rate < 110 or latest_record.fetal_heart_rate >= 160:
+                violations += 1
+        
+        # Check contractions from latest record
+        if latest_record.contractions_per_10min:
+            if latest_record.contractions_per_10min < 2 or latest_record.contractions_per_10min > 5:
+                violations += 1
+        
+        # 🔥 RULE 3: Áp dụng quy tắc theo số lần vi phạm trong record cuối
+        if critical_violations > 0:
+            return 'critical'  # 🔴 ĐỎ - Có vi phạm nghiêm trọng
+        elif violations >= 1:
+            return 'warning'   # 🟡 VÀNG - Có vi phạm cảnh báo
         else:
-            return 'normal'    # 🟢 XANH - 0 lần
+            return 'normal'    # 🟢 XANH - Không có vi phạm
     
     def get_patient_alerts(self, patient_id: str, include_acknowledged: bool = False) -> List[Alert]:
         """Get all alerts for a patient"""

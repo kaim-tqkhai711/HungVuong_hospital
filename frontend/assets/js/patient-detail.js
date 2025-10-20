@@ -267,62 +267,110 @@ function renderPartogramTable(patient) {
         return 'cell-normal';
     };
 
-    // 🔥 Calculate section status based on alert rules
+    // 🔥 Calculate section status based on cell status in the latest record
     const calculateSectionStatus = (records, sectionType) => {
         if (!records || records.length === 0) return 'normal';
         
+        // 🚨 FIX: Only check the LATEST (most recent) record for section header colors
+        const latestRecord = records[records.length - 1];
+        
         if (sectionType === 'fetus') {
-            // 🔥 CTG có ưu tiên tuyệt đối cho thai nhi - kiểm tra tất cả records
-            for (let record of records) {
-                // Check both direct ctg_score and nested fetus.ctg_score
-                const ctg = record.ctg_score || record.fetus?.ctg_score;
-                if (ctg === 3) return 'critical';  // CTG=3 → ĐỎ ngay lập tức
-                if (ctg === 2) return 'warning';   // CTG=2 → VÀNG ngay lập tức
+            // 🔥 CTG có ưu tiên tuyệt đối cho thai nhi - giữ nguyên quy tắc
+            const ctg = latestRecord.ctg_score || latestRecord.fetus?.ctg_score;
+            if (ctg === 3) return 'critical';  // CTG=3 → ĐỎ ngay lập tức
+            if (ctg === 2) return 'warning';   // CTG=2 → VÀNG ngay lập tức
+            
+            // Nếu CTG 0-1, kiểm tra tất cả cell trong section thai nhi
+            const fhr = latestRecord.fetal_heart_rate || latestRecord.fetus?.fetal_heart_rate;
+            
+            // Determine cell statuses for fetal section
+            let cellStatuses = [];
+            
+            // Tim thai cell status
+            if (fhr) {
+                if (fhr < 110 || fhr >= 160) {
+                    cellStatuses.push('critical');
+                } else {
+                    cellStatuses.push('normal');
+                }
             }
             
-            // Nếu tất cả CTG đều 0-1, áp dụng nguyên tắc như mẹ
-            let totalViolations = 0;
-            let hasCritical = false;
+            // CTG cell status (already checked above, but include for completeness)
+            if (ctg !== undefined && ctg !== null) {
+                if (ctg === 3) cellStatuses.push('critical');
+                else if (ctg === 2) cellStatuses.push('warning');
+                else cellStatuses.push('normal');
+            }
             
-            records.forEach(record => {
-                const fhr = record.fetal_heart_rate || record.fetus?.fetal_heart_rate;
-                if (fhr && (fhr < 110 || fhr >= 160)) totalViolations++;
-                if (fhr && (fhr < 100 || fhr > 180)) hasCritical = true;
-            });
-            
-            if (hasCritical || totalViolations >= 4) return 'critical';
-            if (totalViolations >= 1) return 'warning';
-            return 'normal';
+            return determineSectionStatus(cellStatuses);
         }
         
         if (sectionType === 'mother') {
-            // Đếm violations của mẹ
-            let totalViolations = 0;
-            let hasCritical = false;
+            // Kiểm tra tất cả cell trong section mẹ
+            const pulse = latestRecord.pulse || latestRecord.mother?.pulse;
+            const systolic = latestRecord.systolic_bp || latestRecord.mother?.systolic_bp;
+            const diastolic = latestRecord.diastolic_bp || latestRecord.mother?.diastolic_bp;
+            const temperature = latestRecord.temperature || latestRecord.mother?.temperature;
             
-            records.forEach(record => {
-                // Check both direct fields and nested mother fields
-                const pulse = record.pulse || record.mother?.pulse;
-                const systolic = record.systolic_bp || record.mother?.systolic_bp;
-                const temperature = record.temperature || record.mother?.temperature;
-                
-                if (pulse && (pulse < 60 || pulse >= 120)) totalViolations++;
-                if (systolic && (systolic < 80 || systolic >= 140)) totalViolations++;
-                if (temperature && (temperature < 35 || temperature >= 37.5)) totalViolations++;
-                
-                // Check critical thresholds
-                if (pulse && (pulse < 50 || pulse > 120)) hasCritical = true;
-                if (systolic && systolic > 160) hasCritical = true;
-                if (temperature && temperature > 38.0) hasCritical = true;
-            });
+            let cellStatuses = [];
             
-            // Áp dụng quy tắc
-            if (hasCritical || totalViolations >= 4) return 'critical';
-            if (totalViolations >= 1) return 'warning';
-            return 'normal';
+            // Pulse cell status
+            if (pulse) {
+                if (pulse < 60 || pulse >= 120) {
+                    cellStatuses.push('critical');
+                } else {
+                    cellStatuses.push('normal');
+                }
+            }
+            
+            // Systolic BP cell status
+            if (systolic) {
+                if (systolic < 80 || systolic >= 140) {
+                    cellStatuses.push('critical');
+                } else {
+                    cellStatuses.push('normal');
+                }
+            }
+            
+            // Diastolic BP cell status
+            if (diastolic) {
+                if (diastolic < 50 || diastolic >= 90) {
+                    cellStatuses.push('critical');
+                } else {
+                    cellStatuses.push('normal');
+                }
+            }
+            
+            // Temperature cell status
+            if (temperature) {
+                if (temperature < 35 || temperature >= 37.5) {
+                    cellStatuses.push('critical');
+                } else {
+                    cellStatuses.push('normal');
+                }
+            }
+            
+            return determineSectionStatus(cellStatuses);
         }
         
         return 'normal';
+    };
+    
+    // Helper function to determine section status based on cell statuses
+    const determineSectionStatus = (cellStatuses) => {
+        if (cellStatuses.length === 0) return 'normal';
+        
+        const normalCells = cellStatuses.filter(status => status === 'normal').length;
+        const totalCells = cellStatuses.length;
+        
+        // Critical: when NO cells are normal
+        if (normalCells === 0) return 'critical';
+        
+        // Normal: when ALL cells are normal
+        if (normalCells === totalCells) return 'normal';
+        
+        // Warning: all other cases (some normal, some not)
+        return 'warning';
     };
     
     // 🔥 Calculate section statuses
@@ -1173,56 +1221,110 @@ function generatePrintContent() {
     return printHTML;
 }
 
-// Calculate section status (copy for print usage)
+// Calculate section status (check all cells in section of latest record)
 function calculateSectionStatus(records, sectionType) {
     if (!records || records.length === 0) return 'normal';
     
+    // 🚨 FIX: Only check the LATEST (most recent) record for section header colors
+    const latestRecord = records[records.length - 1];
+    
     if (sectionType === 'fetus') {
-        // CTG có ưu tiên tuyệt đối cho thai nhi
-        for (let record of records) {
-            const ctg = record.ctg_score || record.fetus?.ctg_score;
-            if (ctg === 3) return 'critical';
-            if (ctg === 2) return 'warning';
+        // 🔥 CTG có ưu tiên tuyệt đối cho thai nhi - giữ nguyên quy tắc
+        const ctg = latestRecord.ctg_score || latestRecord.fetus?.ctg_score;
+        if (ctg === 3) return 'critical';  // CTG=3 → ĐỎ ngay lập tức
+        if (ctg === 2) return 'warning';   // CTG=2 → VÀNG ngay lập tức
+        
+        // Nếu CTG 0-1, kiểm tra tất cả cell trong section thai nhi
+        const fhr = latestRecord.fetal_heart_rate || latestRecord.fetus?.fetal_heart_rate;
+        
+        // Determine cell statuses for fetal section
+        let cellStatuses = [];
+        
+        // Tim thai cell status
+        if (fhr) {
+            if (fhr < 110 || fhr >= 160) {
+                cellStatuses.push('critical');
+            } else {
+                cellStatuses.push('normal');
+            }
         }
         
-        let totalViolations = 0;
-        let hasCritical = false;
+        // CTG cell status (already checked above, but include for completeness)
+        if (ctg !== undefined && ctg !== null) {
+            if (ctg === 3) cellStatuses.push('critical');
+            else if (ctg === 2) cellStatuses.push('warning');
+            else cellStatuses.push('normal');
+        }
         
-        records.forEach(record => {
-            const fhr = record.fetal_heart_rate || record.fetus?.fetal_heart_rate;
-            if (fhr && (fhr < 110 || fhr >= 160)) totalViolations++;
-            if (fhr && (fhr < 100 || fhr > 180)) hasCritical = true;
-        });
-        
-        if (hasCritical || totalViolations >= 4) return 'critical';
-        if (totalViolations >= 1) return 'warning';
-        return 'normal';
+        return determinePrintSectionStatus(cellStatuses);
     }
     
     if (sectionType === 'mother') {
-        let totalViolations = 0;
-        let hasCritical = false;
+        // Kiểm tra tất cả cell trong section mẹ
+        const pulse = latestRecord.pulse || latestRecord.mother?.pulse;
+        const systolic = latestRecord.systolic_bp || latestRecord.mother?.systolic_bp;
+        const diastolic = latestRecord.diastolic_bp || latestRecord.mother?.diastolic_bp;
+        const temperature = latestRecord.temperature || latestRecord.mother?.temperature;
         
-        records.forEach(record => {
-            const pulse = record.pulse || record.mother?.pulse;
-            const systolic = record.systolic_bp || record.mother?.systolic_bp;
-            const temperature = record.temperature || record.mother?.temperature;
-            
-            if (pulse && (pulse < 60 || pulse >= 120)) totalViolations++;
-            if (systolic && (systolic < 80 || systolic >= 140)) totalViolations++;
-            if (temperature && (temperature < 35 || temperature >= 37.5)) totalViolations++;
-            
-            if (pulse && (pulse < 50 || pulse > 120)) hasCritical = true;
-            if (systolic && systolic > 160) hasCritical = true;
-            if (temperature && temperature > 38.0) hasCritical = true;
-        });
+        let cellStatuses = [];
         
-        if (hasCritical || totalViolations >= 4) return 'critical';
-        if (totalViolations >= 1) return 'warning';
-        return 'normal';
+        // Pulse cell status
+        if (pulse) {
+            if (pulse < 60 || pulse >= 120) {
+                cellStatuses.push('critical');
+            } else {
+                cellStatuses.push('normal');
+            }
+        }
+        
+        // Systolic BP cell status
+        if (systolic) {
+            if (systolic < 80 || systolic >= 140) {
+                cellStatuses.push('critical');
+            } else {
+                cellStatuses.push('normal');
+            }
+        }
+        
+        // Diastolic BP cell status
+        if (diastolic) {
+            if (diastolic < 50 || diastolic >= 90) {
+                cellStatuses.push('critical');
+            } else {
+                cellStatuses.push('normal');
+            }
+        }
+        
+        // Temperature cell status
+        if (temperature) {
+            if (temperature < 35 || temperature >= 37.5) {
+                cellStatuses.push('critical');
+            } else {
+                cellStatuses.push('normal');
+            }
+        }
+        
+        return determinePrintSectionStatus(cellStatuses);
     }
     
     return 'normal';
+}
+
+// Helper function for print section status determination
+function determinePrintSectionStatus(cellStatuses) {
+    if (cellStatuses.length === 0) return 'normal';
+    
+    const normalCells = cellStatuses.filter(status => status === 'normal').length;
+    const totalCells = cellStatuses.length;
+    
+    // Critical: when NO cells are normal
+    if (normalCells === 0) return 'critical';
+    
+    // Normal: when ALL cells are normal
+    if (normalCells === totalCells) return 'normal';
+    
+    // Warning: all other cases (some normal, some not)
+    return 'warning';
 }
 
 // Show toast notification
