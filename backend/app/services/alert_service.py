@@ -186,27 +186,28 @@ class AlertService:
             Alert.is_acknowledged == False
         ).all()
         
-        # Check CTG first (overrides everything if critical/warning)
+        # 🔥 RULE 1: CTG Score có ưu tiên tuyệt đối
         ctg_alerts = [a for a in recent_alerts if a.parameter == 'ctg']
         if ctg_alerts:
-            for alert in ctg_alerts:
-                if alert.severity == 'critical':
-                    return 'critical'
-                elif alert.severity == 'warning':
-                    return 'warning'
+            latest_ctg = ctg_alerts[0]  # Lấy CTG mới nhất
+            if latest_ctg.severity == 'critical':  # CTG = 3
+                return 'critical'  # 🔴 ĐỎ - Toàn bộ thai nhi = ĐỎ
+            elif latest_ctg.severity == 'warning':  # CTG = 2
+                return 'warning'   # 🟡 VÀNG - Toàn bộ thai nhi = VÀNG
         
-        # Count violations by severity
-        critical_count = len([a for a in recent_alerts if a.severity == 'critical'])
-        warning_count = len([a for a in recent_alerts if a.severity == 'warning'])
+        # 🔥 RULE 2: Đếm số lần vượt ngưỡng của MẸ (không tính CTG)
+        mother_alerts = [a for a in recent_alerts if a.alert_type == 'mother']
+        critical_count = len([a for a in mother_alerts if a.severity == 'critical'])
+        warning_count = len([a for a in mother_alerts if a.severity == 'warning'])
         total_violations = critical_count + warning_count
         
-        # Apply business rules
+        # 🔥 RULE 3: Áp dụng quy tắc theo số lần vi phạm
         if critical_count > 0 or total_violations >= 4:
-            return 'critical'
+            return 'critical'  # 🔴 ĐỎ - 4-5 lần hoặc có Critical
         elif total_violations >= 1:
-            return 'warning'
+            return 'warning'   # 🟡 VÀNG - 1-3 lần
         else:
-            return 'normal'
+            return 'normal'    # 🟢 XANH - 0 lần
     
     def get_patient_alerts(self, patient_id: str, include_acknowledged: bool = False) -> List[Alert]:
         """Get all alerts for a patient"""

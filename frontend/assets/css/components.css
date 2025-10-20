@@ -537,6 +537,22 @@
     font-size: 14px;
 }
 
+/* 🔥 Section status colors based on alert rules */
+.section-normal td {
+    background: var(--success-light) !important; /* 🟢 Xanh lá */
+    color: var(--success-dark) !important;
+}
+
+.section-warning td {
+    background: var(--warning-light) !important; /* 🟡 Vàng */
+    color: var(--warning-dark) !important;
+}
+
+.section-critical td {
+    background: var(--danger-light) !important; /* 🔴 Đỏ */
+    color: var(--danger-dark) !important;
+}
+
 .param-label {
     background: var(--gray-100);
     padding-left: 16px;

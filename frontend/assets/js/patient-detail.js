@@ -249,9 +249,69 @@ function renderPartogramTable(patient) {
         
         return 'cell-normal';
     };
+
+    // 🔥 Calculate section status based on alert rules
+    const calculateSectionStatus = (records, sectionType) => {
+        if (!records || records.length === 0) return 'normal';
+        
+        if (sectionType === 'fetus') {
+            // 🔥 CTG có ưu tiên tuyệt đối cho thai nhi - kiểm tra tất cả records
+            for (let record of records) {
+                const ctg = record.fetus?.ctg_score;
+                if (ctg === 3) return 'critical';  // CTG=3 → ĐỎ ngay lập tức
+                if (ctg === 2) return 'warning';   // CTG=2 → VÀNG ngay lập tức
+            }
+            
+            // Nếu tất cả CTG đều 0-1, áp dụng nguyên tắc như mẹ
+            let totalViolations = 0;
+            let hasCritical = false;
+            
+            records.forEach(record => {
+                const fhr = record.fetus?.fetal_heart_rate;
+                if (fhr && (fhr < 110 || fhr >= 160)) totalViolations++;
+                if (fhr && (fhr < 100 || fhr > 180)) hasCritical = true;
+            });
+            
+            if (hasCritical || totalViolations >= 4) return 'critical';
+            if (totalViolations >= 1) return 'warning';
+            return 'normal';
+        }
+        
+        if (sectionType === 'mother') {
+            // Đếm violations của mẹ
+            let totalViolations = 0;
+            let hasCritical = false;
+            
+            records.forEach(record => {
+                const pulse = record.mother?.pulse;
+                const systolic = record.mother?.systolic_bp;
+                const temperature = record.mother?.temperature;
+                
+                if (pulse && (pulse < 60 || pulse >= 120)) totalViolations++;
+                if (systolic && (systolic < 80 || systolic >= 140)) totalViolations++;
+                if (temperature && (temperature < 35 || temperature >= 37.5)) totalViolations++;
+                
+                // Check critical thresholds
+                if (pulse && (pulse < 50 || pulse > 120)) hasCritical = true;
+                if (systolic && systolic > 160) hasCritical = true;
+                if (temperature && temperature > 38.0) hasCritical = true;
+            });
+            
+            // Áp dụng quy tắc
+            if (hasCritical || totalViolations >= 4) return 'critical';
+            if (totalViolations >= 1) return 'warning';
+            return 'normal';
+        }
+        
+        return 'normal';
+    };
+    
+    // 🔥 Calculate section statuses
+    const motherStatus = calculateSectionStatus(data, 'mother');
+    const fetusStatus = calculateSectionStatus(data, 'fetus');
     
     // TÌNH TRẠNG MẸ
-    bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">TÌNH TRẠNG MẸ</td></tr>';
+    bodyHTML += `<tr class="section-header section-${motherStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG MẸ</td></tr>`;
     bodyHTML += createRow('Mạch (lần/phút)', 'mother', r => r.mother?.pulse,
         r => getCellClass(r.mother?.pulse, { critical: [(v) => v < 60, (v) => v >= 120] }));
     bodyHTML += createRow('HA tâm thu (mmHg)', 'mother', r => r.mother?.systolic_bp,
@@ -261,8 +321,8 @@ function renderPartogramTable(patient) {
     bodyHTML += createRow('Nhiệt độ (°C)', 'mother', r => r.mother?.temperature,
         r => getCellClass(r.mother?.temperature, { critical: [(v) => v < 35, (v) => v >= 37.5] }));
     
-    // TÌNH TRẠNG THAI NHI
-    bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">TÌNH TRẠNG THAI NHI</td></tr>';
+    // TÌNH TRẠNG THAI NHI  
+    bodyHTML += `<tr class="section-header section-${fetusStatus}"><td colspan="${data.length + 1}">TÌNH TRẠNG THAI NHI</td></tr>`;
     bodyHTML += createRow('Tim thai (lần/phút)', 'fetus', r => r.fetus?.fetal_heart_rate,
         r => getCellClass(r.fetus?.fetal_heart_rate, { critical: [(v) => v < 110, (v) => v >= 160] }));
     bodyHTML += createRow('CTG', 'fetus', r => r.fetus?.ctg_score,
