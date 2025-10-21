@@ -27,6 +27,29 @@ class PartogramService:
         db.session.commit()
         return patient
     
+    def get_patient_by_id(self, patient_id: str) -> Optional[Patient]:
+        """Get patient by ID"""
+        return Patient.query.get(patient_id)
+    
+    def update_patient(self, patient_id: str, patient_data: Dict) -> Patient:
+        """Update patient information"""
+        patient = self.get_patient_by_id(patient_id)
+        if not patient:
+            raise ValueError(f"Patient {patient_id} not found")
+        
+        # Update fields
+        patient.id = patient_data['id']
+        patient.name = patient_data['name']
+        patient.age = patient_data['age']
+        patient.room = patient_data['room']
+        patient.gestational_week = patient_data['gestational_week']
+        patient.parity = patient_data['parity']
+        patient.labor_diagnosis_time = datetime.fromisoformat(patient_data['labor_diagnosis_time'])
+        patient.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        return patient
+    
     def get_all_patients(self) -> List[Dict]:
         """Get all patients with their current status"""
         patients = Patient.query.all()

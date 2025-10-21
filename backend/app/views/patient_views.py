@@ -82,6 +82,54 @@ def get_patient_detail(patient_id):
         }), 500
 
 
+@patient_bp.route('/<patient_id>', methods=['PUT'])
+def update_patient(patient_id):
+    """Update patient information"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['id', 'name', 'age', 'room', 'gestational_week', 'parity', 'labor_diagnosis_time']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'Thiếu trường bắt buộc: {field}'
+                }), 400
+        
+        # Check if patient exists
+        existing_patient = partogram_service.get_patient_by_id(patient_id)
+        if not existing_patient:
+            return jsonify({
+                'success': False,
+                'error': 'Không tìm thấy bệnh nhân'
+            }), 404
+        
+        # If ID is changed, check for uniqueness
+        if data['id'] != patient_id:
+            existing_with_new_id = partogram_service.get_patient_by_id(data['id'])
+            if existing_with_new_id:
+                return jsonify({
+                    'success': False,
+                    'error': f'Mã bệnh nhân {data["id"]} đã tồn tại'
+                }), 400
+        
+        updated_patient = partogram_service.update_patient(patient_id, data)
+        
+        return jsonify({
+            'success': True,
+            'data': updated_patient.to_dict(),
+            'message': 'Cập nhật thông tin bệnh nhân thành công'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': 'Lỗi khi cập nhật thông tin bệnh nhân',
+            'message': str(e)
+        }), 500
+
+
 @patient_bp.route('/dashboard/summary', methods=['GET'])
 def get_dashboard_summary():
     """Get dashboard summary statistics"""

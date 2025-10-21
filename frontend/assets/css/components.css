@@ -138,6 +138,33 @@
     margin-bottom: 25px;
 }
 
+.patient-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.btn-edit-patient {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-edit-patient:hover {
+    background: #c084c1;
+    transform: translateY(-2px);
+}
+
 .patient-header-content {
     display: grid;
     grid-template-columns: 1fr auto;

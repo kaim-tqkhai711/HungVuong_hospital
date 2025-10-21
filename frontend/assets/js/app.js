@@ -310,8 +310,9 @@ class PatientListApp {
                     <h3>👤 Thông tin cơ bản</h3>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Mã bệnh nhân *:</label>
-                            <input type="text" name="id" placeholder="VD: BN001" required>
+                            <label>Mã bệnh nhân:</label>
+                            <input type="text" name="id" placeholder="Để trống để tự động tạo (BN00001, BN00002...)">
+                            <small class="form-hint">Có thể để trống, hệ thống sẽ tự động tạo mã duy nhất</small>
                         </div>
                         <div class="form-group">
                             <label>Họ và tên *:</label>
@@ -397,12 +398,55 @@ class PatientListApp {
         modal.style.display = 'block';
     }
 
+    async generateUniquePatientId() {
+        try {
+            // Start from BN00001 and increment until we find an unused ID
+            let counter = 1;
+            let patientId;
+            
+            do {
+                patientId = 'BN' + counter.toString().padStart(5, '0');
+                
+                // Check if this ID already exists
+                const response = await this.apiService.getPatient(patientId);
+                
+                if (!response.success) {
+                    // ID not found, so it's available
+                    break;
+                }
+                
+                counter++;
+                
+                // Safety check to prevent infinite loop
+                if (counter > 99999) {
+                    throw new Error('Không thể tạo mã bệnh nhân mới. Vui lòng liên hệ quản trị viên.');
+                }
+                
+            } while (true);
+            
+            return patientId;
+            
+        } catch (error) {
+            console.error('Error generating unique patient ID:', error);
+            // Fallback: use current timestamp
+            const timestamp = Date.now().toString().slice(-5);
+            return 'BN' + timestamp;
+        }
+    }
+
     async saveNewPatient(form) {
         try {
             const formData = new FormData(form);
             
+            let patientId = formData.get('id').trim();
+            
+            // Auto-generate ID if left blank
+            if (!patientId) {
+                patientId = await this.generateUniquePatientId();
+            }
+            
             const patientData = {
-                id: formData.get('id').trim(),
+                id: patientId,
                 name: formData.get('name').trim(),
                 age: parseInt(formData.get('age')),
                 room: formData.get('room').trim(),
@@ -411,8 +455,8 @@ class PatientListApp {
                 labor_diagnosis_time: formData.get('labor_diagnosis_time')
             };
             
-            // Validate required fields
-            if (!patientData.id || !patientData.name || !patientData.age || !patientData.room || !patientData.gestational_week || !patientData.parity || !patientData.labor_diagnosis_time) {
+            // Validate required fields (ID is now auto-generated if blank)
+            if (!patientData.name || !patientData.age || !patientData.room || !patientData.gestational_week || !patientData.parity || !patientData.labor_diagnosis_time) {
                 AlertUtils.showNotification('Vui lòng điền đầy đủ thông tin bắt buộc', 'warning');
                 return;
             }
@@ -436,7 +480,18 @@ class PatientListApp {
                 }, 1500);
                 
             } else {
-                throw new Error(response.error || 'Không thể thêm bệnh nhân');
+                // Handle specific error cases
+                let errorMessage = response.error || 'Không thể thêm bệnh nhân';
+                
+                if (errorMessage.toLowerCase().includes('duplicate') || 
+                    errorMessage.toLowerCase().includes('unique') ||
+                    errorMessage.toLowerCase().includes('already exists')) {
+                    errorMessage = `Mã bệnh nhân "${patientData.id}" đã tồn tại. Vui lòng sử dụng mã khác hoặc để trống để hệ thống tự tạo.`;
+                } else if (errorMessage.toLowerCase().includes('validation')) {
+                    errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.';
+                }
+                
+                throw new Error(errorMessage);
             }
             
         } catch (error) {

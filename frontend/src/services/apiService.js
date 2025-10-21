@@ -45,6 +45,13 @@ class ApiService {
         });
     }
 
+    async updatePatient(patientId, patientData) {
+        return this.makeRequest(`/patients/${patientId}`, {
+            method: 'PUT',
+            body: JSON.stringify(patientData)
+        });
+    }
+
     async getDashboardSummary() {
         return this.makeRequest('/patients/dashboard/summary');
     }

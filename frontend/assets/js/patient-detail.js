@@ -130,7 +130,12 @@ function renderPatientHeader(patient) {
     container.innerHTML = `
         <div class="patient-header-info">
             <div class="info-main">
-                <h2>${patient.name}</h2>
+                <div class="patient-header-top">
+                    <h2>${patient.name}</h2>
+                    <button class="btn-edit-patient" onclick="showEditPatientModal()" title="Chỉnh sửa thông tin bệnh nhân">
+                        ✏️ Sửa thông tin
+                    </button>
+                </div>
                 <div class="info-row">
                     <span class="info-item"><strong>Năm sinh:</strong> ${birthYear}</span>
                     <span class="info-item"><strong>Tuổi:</strong> ${patient.age}</span>
@@ -886,16 +891,23 @@ function setupEventListeners() {
     
     document.getElementById('closeAddRecordModal').addEventListener('click', closeAddRecordModal);
     
+    // Edit Patient Modal
+    document.getElementById('closeEditPatientModal').addEventListener('click', closeEditPatientModal);
+    
     // Close modal when clicking outside
     window.addEventListener('click', function(event) {
         const overviewModal = document.getElementById('overviewModal');
         const addRecordModal = document.getElementById('addRecordModal');
+        const editPatientModal = document.getElementById('editPatientModal');
         
         if (event.target === overviewModal) {
             overviewModal.style.display = 'none';
         }
         if (event.target === addRecordModal) {
             addRecordModal.style.display = 'none';
+        }
+        if (event.target === editPatientModal) {
+            editPatientModal.style.display = 'none';
         }
     });
 }
@@ -1364,4 +1376,183 @@ function createToastContainer() {
     container.className = 'toast-container';
     document.body.appendChild(container);
     return container;
+}
+
+// Show edit patient modal
+function showEditPatientModal() {
+    if (!currentPatient) {
+        showToast('Không tìm thấy thông tin bệnh nhân để chỉnh sửa', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('editPatientModal');
+    const formContainer = document.getElementById('editPatientForm');
+    
+    // Convert labor_diagnosis_time to datetime-local format
+    const laborTime = currentPatient.labor_diagnosis_time ? 
+        new Date(currentPatient.labor_diagnosis_time).toISOString().slice(0, 16) : '';
+    
+    formContainer.innerHTML = `
+        <form id="editPatientForm" class="add-patient-form">
+            <div class="form-section">
+                <h3>👤 Thông tin cơ bản</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Mã bệnh nhân *:</label>
+                        <input type="text" name="id" value="${currentPatient.id}" required>
+                        <small class="form-hint">Mã phải duy nhất trong hệ thống</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Họ và tên *:</label>
+                        <input type="text" name="name" value="${currentPatient.name}" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tuổi *:</label>
+                        <input type="number" name="age" min="15" max="50" value="${currentPatient.age}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phòng *:</label>
+                        <input type="text" name="room" value="${currentPatient.room}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>🤰 Thông tin sản khoa</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tuần thai *:</label>
+                        <input type="text" name="gestational_week" value="${currentPatient.gestational_week}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Para * (4 chữ số):</label>
+                        <input type="text" name="parity" value="${currentPatient.parity}" pattern="[0-9]{4}" maxlength="4" required>
+                        <small class="form-hint">Nhập 4 chữ số: Số lần có thai - Số lần sinh - Số lần sảy thai - Số con còn sống</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>Thời gian chẩn đoán chuyển dạ *:</label>
+                        <input type="datetime-local" name="labor_diagnosis_time" value="${laborTime}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn-cancel" onclick="closeEditPatientModal()">Hủy</button>
+                <button type="submit" class="btn-save">💾 Lưu thay đổi</button>
+            </div>
+        </form>
+    `;
+    
+    // Add parity input formatting
+    const parityInput = formContainer.querySelector('input[name="parity"]');
+    parityInput.addEventListener('input', function(e) {
+        // Only allow digits
+        let value = e.target.value.replace(/\D/g, '');
+        // Limit to 4 digits
+        if (value.length > 4) {
+            value = value.slice(0, 4);
+        }
+        e.target.value = value;
+    });
+    
+    // Handle form submission
+    const form = document.getElementById('editPatientForm');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await savePatientEdits(form);
+    });
+    
+    modal.style.display = 'block';
+}
+
+// Close edit patient modal
+function closeEditPatientModal() {
+    document.getElementById('editPatientModal').style.display = 'none';
+}
+
+// Save patient edits
+async function savePatientEdits(form) {
+    try {
+        const formData = new FormData(form);
+        
+        const updatedData = {
+            id: formData.get('id').trim(),
+            name: formData.get('name').trim(),
+            age: parseInt(formData.get('age')),
+            room: formData.get('room').trim(),
+            gestational_week: formData.get('gestational_week').trim(),
+            parity: formData.get('parity').trim(),
+            labor_diagnosis_time: formData.get('labor_diagnosis_time')
+        };
+        
+        // Validate required fields
+        if (!updatedData.id || !updatedData.name || !updatedData.age || !updatedData.room || 
+            !updatedData.gestational_week || !updatedData.parity || !updatedData.labor_diagnosis_time) {
+            showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'warning');
+            return;
+        }
+        
+        // Validate parity format
+        if (!/^\d{4}$/.test(updatedData.parity)) {
+            showToast('Para phải là 4 chữ số (VD: 0000, 0100)', 'warning');
+            return;
+        }
+        
+        // Check if ID changed and validate uniqueness
+        if (updatedData.id !== currentPatient.id) {
+            const apiService = new ApiService();
+            const checkResponse = await apiService.getPatient(updatedData.id);
+            
+            if (checkResponse.success) {
+                showToast(`Mã bệnh nhân "${updatedData.id}" đã tồn tại. Vui lòng sử dụng mã khác.`, 'error');
+                return;
+            }
+        }
+        
+        // Save to backend
+        const apiService = new ApiService();
+        const response = await apiService.updatePatient(currentPatient.id, updatedData);
+        
+        if (response.success) {
+            // Close modal
+            closeEditPatientModal();
+            
+            // Update current patient data
+            currentPatient = { ...currentPatient, ...updatedData };
+            
+            // Re-render patient header
+            renderPatientHeader(currentPatient);
+            
+            // Update URL if ID changed
+            if (updatedData.id !== getPatientIdFromUrl()) {
+                window.history.replaceState({}, '', `patient-detail.html?id=${updatedData.id}`);
+            }
+            
+            showToast('✅ Đã cập nhật thông tin bệnh nhân thành công!', 'success');
+            
+        } else {
+            // Handle specific error cases
+            let errorMessage = response.error || 'Không thể cập nhật thông tin bệnh nhân';
+            
+            if (errorMessage.toLowerCase().includes('duplicate') || 
+                errorMessage.toLowerCase().includes('unique') ||
+                errorMessage.toLowerCase().includes('already exists')) {
+                errorMessage = `Mã bệnh nhân "${updatedData.id}" đã tồn tại. Vui lòng sử dụng mã khác.`;
+            } else if (errorMessage.toLowerCase().includes('validation')) {
+                errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các thông tin đã nhập.';
+            } else if (errorMessage.toLowerCase().includes('not found')) {
+                errorMessage = 'Không tìm thấy bệnh nhân trong hệ thống.';
+            }
+            
+            throw new Error(errorMessage);
+        }
+        
+    } catch (error) {
+        console.error('Error updating patient:', error);
+        showToast('Lỗi khi cập nhật thông tin: ' + error.message, 'error');
+    }
 }
