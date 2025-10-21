@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Refresh - Clear Cache</title>
+</head>
+<body>
+    <h1>🔄 Force Refresh Trang web</h1>
+    <p>Click nút dưới để force refresh và clear cache:</p>
+    
+    <button onclick="hardRefresh()" style="padding: 10px 20px; font-size: 16px; background: #dd94de; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        🔄 Hard Refresh & Clear Cache
+    </button>
+    
+    <button onclick="goToIndex()" style="padding: 10px 20px; font-size: 16px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+        📋 Vào trang chính
+    </button>
+    
+    <script>
+        function hardRefresh() {
+            // Clear cache and reload
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(name) {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // Force reload with cache bypass
+            window.location.reload(true);
+        }
+        
+        function goToIndex() {
+            window.location.href = 'index.html?v=' + Date.now();
+        }
+    </script>
+    
+    <hr>
+    <h3>📝 Hướng dẫn:</h3>
+    <ol>
+        <li>Bấm "Hard Refresh & Clear Cache" trước</li>
+        <li>Sau đó bấm "Vào trang chính"</li>
+        <li>Hoặc bấm <strong>Ctrl+Shift+R</strong> (Windows) hoặc <strong>Cmd+Shift+R</strong> (Mac) trên trang index.html</li>
+    </ol>
+    
+    <h3>🔧 Các thay đổi đã làm:</h3>
+    <ul>
+        <li>✅ Thêm cache-busting meta tags</li>
+        <li>✅ Form thêm bệnh nhân: Para giờ là input 4 chữ số (không còn dropdown)</li>
+        <li>✅ Tự động chuyển đến trang chi tiết sau khi tạo bệnh nhân</li>
+        <li>✅ Status badges (NGHIÊM TRỌNG, CẦN THEO DÕI) có animation và màu nổi bật</li>
+    </ul>
+</body>
+</html>

@@ -51,16 +51,18 @@ class AlertUtils {
 
     static getStatusClass(status) {
         const classes = {
-            normal: 'status-normal',
-            warning: 'status-warning', 
-            critical: 'status-critical'
+            normal: 'normal',
+            warning: 'warning', 
+            critical: 'critical'
         };
         return classes[status] || classes.normal;
     }
 
     static getStatusBadgeHtml(status, text = null) {
         const statusText = text || AlertUtils.getStatusText(status);
-        return `<span class="status-badge ${AlertUtils.getStatusClass(status)}">${statusText}</span>`;
+        const statusClass = AlertUtils.getStatusClass(status);
+        console.log('Creating badge:', status, statusClass, statusText); // Debug
+        return `<span class="status-badge ${statusClass}">${statusText}</span>`;
     }
 
     static getStatusText(status) {

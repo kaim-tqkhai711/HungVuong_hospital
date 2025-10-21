@@ -1,4 +1,4 @@
-// Main application logic for the patient list page
+// Main application logic for the patient list page - Updated 2025/10/21
 class PatientListApp {
     constructor() {
         this.apiService = new ApiService();
@@ -169,6 +169,7 @@ class PatientListApp {
 
     renderPatientCard(patient) {
         const statusBadge = AlertUtils.getStatusBadgeHtml(patient.status);
+        console.log('Patient status:', patient.status, 'Badge HTML:', statusBadge); // Debug log
         const alertsHtml = patient.alerts ? patient.alerts.map(alert => 
             `<div class="alert-item ${alert.severity}">${alert.message}</div>`
         ).join('') : '';
@@ -337,15 +338,9 @@ class PatientListApp {
                             <input type="text" name="gestational_week" placeholder="VD: 39 tuần 2 ngày" required>
                         </div>
                         <div class="form-group">
-                            <label>Para *:</label>
-                            <select name="parity" required>
-                                <option value="">-- Chọn Para --</option>
-                                <option value="Para 0">Para 0 (Con so)</option>
-                                <option value="Para 1">Para 1</option>
-                                <option value="Para 2">Para 2</option>
-                                <option value="Para 3">Para 3</option>
-                                <option value="Para 4+">Para 4+</option>
-                            </select>
+                            <label>Para * (4 chữ số):</label>
+                            <input type="text" name="parity" placeholder="VD: 0000, 0100, 0210" pattern="[0-9]{4}" maxlength="4" required>
+                            <small class="form-hint">Nhập 4 chữ số: Số lần có thai - Số lần sinh - Số lần sảy thai - Số con còn sống</small>
                         </div>
                     </div>
                     <div class="form-row">
@@ -369,10 +364,33 @@ class PatientListApp {
         const datetimeInput = formContainer.querySelector('input[name="labor_diagnosis_time"]');
         datetimeInput.value = now.toISOString().slice(0, 16);
         
+        // Add parity input formatting
+        const parityInput = formContainer.querySelector('input[name="parity"]');
+        parityInput.addEventListener('input', function(e) {
+            // Only allow digits
+            let value = e.target.value.replace(/\D/g, '');
+            // Limit to 4 digits
+            if (value.length > 4) {
+                value = value.slice(0, 4);
+            }
+            e.target.value = value;
+        });
+        
         // Handle form submission
         const form = document.getElementById('newPatientForm');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Validate parity format
+            const parityInput = form.querySelector('input[name="parity"]');
+            const parityValue = parityInput.value.trim();
+            
+            if (!/^\d{4}$/.test(parityValue)) {
+                AlertUtils.showNotification('Para phải là 4 chữ số (VD: 0000, 0100)', 'warning');
+                parityInput.focus();
+                return;
+            }
+            
             await this.saveNewPatient(form);
         });
         
@@ -410,15 +428,12 @@ class PatientListApp {
                 await this.loadPatients();
                 await this.loadDashboardSummary();
                 
-                AlertUtils.showNotification('✓ Đã thêm bệnh nhân mới thành công!', 'success');
+                AlertUtils.showNotification('✓ Đã thêm bệnh nhân mới thành công! Đang chuyển đến trang chi tiết...', 'success');
                 
-                // Optionally navigate to patient detail
+                // Automatically navigate to patient detail
                 setTimeout(() => {
-                    const shouldGoToDetail = confirm('Bạn có muốn chuyển đến trang chi tiết bệnh nhân không?');
-                    if (shouldGoToDetail) {
-                        this.openPatientDetail(patientData.id);
-                    }
-                }, 1000);
+                    this.openPatientDetail(patientData.id);
+                }, 1500);
                 
             } else {
                 throw new Error(response.error || 'Không thể thêm bệnh nhân');

@@ -1,4 +1,4 @@
-/* Component-specific styles */
+/* Component-specific styles - Updated 2025/10/21 */
 
 /* Patient Card Component */
 .patient-card {
@@ -8,6 +8,60 @@
     overflow: hidden;
     transition: var(--transition);
     cursor: pointer;
+}
+
+/* Status Badge Styling */
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 2px solid;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-badge.critical {
+    background: var(--danger-color);
+    color: var(--white);
+    border-color: #c53030;
+    box-shadow: 0 0 15px rgba(220, 38, 127, 0.3);
+    animation: pulse-red 2s infinite;
+}
+
+.status-badge.warning {
+    background: var(--warning-color);
+    color: var(--white);
+    border-color: #d69e2e;
+    box-shadow: 0 0 15px rgba(237, 137, 54, 0.3);
+    animation: pulse-yellow 2s infinite;
+}
+
+.status-badge.normal {
+    background: var(--success-color);
+    color: var(--white);
+    border-color: #38a169;
+}
+
+@keyframes pulse-red {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(220, 38, 127, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(220, 38, 127, 0.6);
+    }
+}
+
+@keyframes pulse-yellow {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(237, 137, 54, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(237, 137, 54, 0.6);
+    }
 }
 
 .patient-card:hover {
@@ -790,6 +844,13 @@
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(221, 148, 222, 0.1);
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--gray-600);
+    margin-top: 4px;
+    font-style: italic;
 }
 
 .form-actions {

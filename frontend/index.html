@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Cache busting meta tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Hệ thống theo dõi Chuyển dạ - Bệnh viện Hùng Vương</title>
     <link rel="stylesheet" href="assets/css/styles.css">
     <link rel="stylesheet" href="assets/css/components.css">
+    <script>
+        // Add timestamp to prevent caching
+        var timestamp = new Date().getTime();
+        document.write('<link rel="stylesheet" href="assets/css/styles.css?v=' + timestamp + '">');
+        document.write('<link rel="stylesheet" href="assets/css/components.css?v=' + timestamp + '">');
+    </script>
 </head>
 <body>
     <div class="container">
@@ -83,11 +93,12 @@
     </div>
 
     <!-- Scripts -->
-    <script src="src/services/apiService.js"></script>
-    <script src="src/utils/dateUtils.js"></script>
-    <script src="src/utils/alertUtils.js"></script>
-    <script src="src/components/patientCard.js"></script>
-    <script src="src/components/statusSummary.js"></script>
-    <script src="assets/js/app.js"></script>
+    <script>
+        var timestamp2 = new Date().getTime();
+        document.write('<script src="src/services/apiService.js?v=' + timestamp2 + '"><\/script>');
+        document.write('<script src="src/utils/dateUtils.js?v=' + timestamp2 + '"><\/script>');
+        document.write('<script src="src/utils/alertUtils.js?v=' + timestamp2 + '"><\/script>');
+        document.write('<script src="assets/js/app.js?v=' + timestamp2 + '"><\/script>');
+    </script>
 </body>
 </html>

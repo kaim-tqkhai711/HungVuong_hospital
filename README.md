@@ -8,6 +8,9 @@ Hệ thống theo dõi chuyển dạ được thiết kế để hỗ trợ các
 - **Hệ thống cảnh báo thông minh**: Tự động phát hiện và phân loại các nguy cơ dựa trên ngưỡng y khoa
 - **Đánh giá tự động**: Phân loại tình trạng mẹ, thai nhi và tổng thể theo 3 cấp độ (Bình thường/Cảnh báo/Nguy hiểm)
 - **Giao diện thân thiện**: Dễ sử dụng trên các thiết bị khác nhau
+- **Cache-busting**: Websites luôn refresh và hiển thị dữ liệu mới nhất
+- **Auto-redirect**: Tự động chuyển đến trang chi tiết sau khi tạo bệnh nhân mới
+- **Para 4 chữ số**: Sử dụng định dạng chuẩn 4 chữ số cho thông tin sản khoa
 
 ## 🏗️ Kiến trúc Hệ thống
 
@@ -201,6 +204,20 @@ npx serve . -p 3000
    - Chọn loại kết cục sinh
    - Nhập thông tin chi tiết về trẻ sơ sinh
    - Lưu ghi chú cuối cùng
+
+### Định dạng Para (4 chữ số)
+
+Hệ thống sử dụng định dạng Para chuẩn 4 chữ số:
+- **Chữ số 1**: Tổng số lần có thai (Gravida)
+- **Chữ số 2**: Số lần sinh đủ tháng (Term births) 
+- **Chữ số 3**: Số lần sinh non tháng (Preterm births)
+- **Chữ số 4**: Số lần sảy thai/nạo phá thai (Abortions/Miscarriages)
+
+**Ví dụ**:
+- `0000`: Chưa có thai lần nào
+- `0100`: Thai lần đầu, chưa sinh
+- `2110`: Có thai 2 lần, sinh đủ tháng 1 lần, sinh non 1 lần, sảy 0 lần
+- `3201`: Có thai 3 lần, sinh đủ tháng 2 lần, sinh non 0 lần, sảy 1 lần
 
 ## 📊 Quy tắc Cảnh báo
 
