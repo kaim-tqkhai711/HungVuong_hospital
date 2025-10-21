@@ -36,6 +36,9 @@ def create_app(config_name='development'):
         }
     })
     
+    # Import models after db is initialized 
+    from app.models import Patient, PartogramRecord, Assessment, Alert, Outcome
+    
     # Register blueprints
     from app.views.patient_views import patient_bp
     from app.views.partogram_views import partogram_bp

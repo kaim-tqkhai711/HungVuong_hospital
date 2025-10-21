@@ -111,11 +111,21 @@ pip install -r requirements.txt
 copy .env.example .env
 # Chỉnh sửa .env file theo môi trường của bạn
 
-# Khởi tạo database
-flask db init
+# Khởi tạo database (Dùng python, khuyến nghị)
+python manage.py db init
+python manage.py db migrate -m "initial"
+python manage.py db upgrade
 
-# Tạo dữ liệu mẫu (tùy chọn) (đang ko hoạt động)
-flask db seed
+# Hoặc dùng Flask
+cd C:\Projects\URA\hungvuong\backend
+venv\Scripts\Activate.ps1
+# ensure .env is loaded into the current session:
+$env:FLASK_APP = 'app.py'
+$env:FLASK_ENV = 'development'
+# now run migrations
+flask db init
+flask db migrate -m "initial"
+flask db upgrade
 
 # Chạy ứng dụng
 python app.py

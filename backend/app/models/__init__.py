@@ -1,6 +1,8 @@
 from datetime import datetime
-from app import db
 from sqlalchemy import func
+
+# Import db from app package
+from .. import db
 
 
 class Patient(db.Model):

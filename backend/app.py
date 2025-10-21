@@ -1,24 +1,34 @@
-from app import create_app, db
-from app.models import Patient, PartogramRecord, Assessment, Alert, Outcome
 import os
+from dotenv import load_dotenv
+from app import create_app
 
-# Create Flask app
+# Load environment variables from .env file first
+load_dotenv()
+
+# Create Flask app - Flask will auto-discover this as 'app'
 app = create_app(os.environ.get('FLASK_ENV', 'development'))
 
-# CLI commands for database management
-@app.cli.command()
-def init_db():
-    """Initialize the database."""
-    db.create_all()
-    print("Database tables created successfully!")
+# Make the app discoverable by Flask CLI
+application = app
 
-@app.cli.command()
-def seed_db():
+# Import after app creation to avoid circular imports
+from app import db
+from app.models import Patient, PartogramRecord, Assessment, Alert, Outcome
+
+# Make sure Flask can find the app instance
+def create_tables():
+    """Create database tables."""
+    with app.app_context():
+        db.create_all()
+        print("✅ Database tables created successfully!")
+
+def seed_data():
     """Seed the database with sample data."""
     from datetime import datetime, timedelta
     
-    # Create sample patients
-    patients_data = [
+    with app.app_context():
+        # Create sample patients
+        patients_data = [
         {
             'id': 'BN001',
             'name': 'Nguyễn Thị Hồng',
@@ -46,18 +56,18 @@ def seed_db():
             'parity': 'Para 0',
             'labor_diagnosis_time': datetime.now() - timedelta(hours=8)
         }
-    ]
-    
-    for patient_data in patients_data:
-        existing = Patient.query.get(patient_data['id'])
-        if not existing:
-            patient = Patient(**patient_data)
-            db.session.add(patient)
-    
-    db.session.commit()
-    
-    # Add sample partogram records
-    sample_records = [
+        ]
+        
+        for patient_data in patients_data:
+            existing = Patient.query.get(patient_data['id'])
+            if not existing:
+                patient = Patient(**patient_data)
+                db.session.add(patient)
+        
+        db.session.commit()
+        
+        # Add sample partogram records
+        sample_records = [
         {
             'patient_id': 'BN001',
             'recorded_at': datetime.now() - timedelta(hours=3),
@@ -96,15 +106,27 @@ def seed_db():
             'ctg_score': 2,  # Warning
             'cervix_dilation': 3,
             'contractions_per_10min': 3
-        }
-    ]
-    
-    for record_data in sample_records:
-        record = PartogramRecord(**record_data)
-        db.session.add(record)
-    
-    db.session.commit()
-    print("Sample data created successfully!")
+            }
+        ]
+        
+        for record_data in sample_records:
+            record = PartogramRecord(**record_data)
+            db.session.add(record)
+        
+        db.session.commit()
+        print("✅ Sample data created successfully!")
+
+# Add CLI commands
+@app.cli.command()
+def init_db():
+    """Initialize the database."""
+    create_tables()
+
+@app.cli.command()
+def seed_db():
+    """Seed the database with sample data."""
+    create_tables()  # Ensure tables exist first
+    seed_data()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
