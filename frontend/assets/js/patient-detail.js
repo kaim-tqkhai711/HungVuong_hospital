@@ -875,6 +875,16 @@ function setupEventListeners() {
     // Overview button
     document.getElementById('btnOverview').addEventListener('click', showOverviewModal);
     
+    // Edit Patient button
+    const editBtn = document.getElementById('btnEditPatient');
+    console.log('Setting up edit button listener, button found:', editBtn);
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            console.log('Edit button clicked!');
+            showEditPatientModal();
+        });
+    }
+    
     // Add Record button
     document.getElementById('btnAddRecord').addEventListener('click', showAddRecordModal);
     
@@ -1380,6 +1390,9 @@ function createToastContainer() {
 
 // Show edit patient modal
 function showEditPatientModal() {
+    console.log('showEditPatientModal called');
+    console.log('currentPatient:', currentPatient);
+    
     if (!currentPatient) {
         showToast('Không tìm thấy thông tin bệnh nhân để chỉnh sửa', 'error');
         return;
@@ -1393,7 +1406,7 @@ function showEditPatientModal() {
         new Date(currentPatient.labor_diagnosis_time).toISOString().slice(0, 16) : '';
     
     formContainer.innerHTML = `
-        <form id="editPatientForm" class="add-patient-form">
+        <form id="editPatientFormElement" class="add-patient-form">
             <div class="form-section">
                 <h3>👤 Thông tin cơ bản</h3>
                 <div class="form-row">
@@ -1460,7 +1473,7 @@ function showEditPatientModal() {
     });
     
     // Handle form submission
-    const form = document.getElementById('editPatientForm');
+    const form = document.getElementById('editPatientFormElement');
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         await savePatientEdits(form);
