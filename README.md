@@ -276,7 +276,43 @@ curl "http://127.0.0.1:5000/api/partogram/BN001/timeline?zoom=1h"
 
 ## 🚀 Deployment
 
-### Development
+### Automated Deployment (Khuyến nghị)
+
+Hệ thống cung cấp các script tự động hóa việc deployment:
+
+#### Windows (PowerShell/Batch)
+```powershell
+# Cách 1: Sử dụng batch file (đơn giản nhất)
+deploy.bat
+
+# Cách 2: Sử dụng PowerShell trực tiếp
+.\deploy.ps1 development    # Development mode
+.\deploy.ps1 production     # Production mode
+```
+
+#### Linux/Mac (Bash)
+```bash
+# Cấp quyền thực thi
+chmod +x deploy.sh
+
+# Chạy deployment
+./deploy.sh development     # Development mode
+./deploy.sh production      # Production mode
+```
+
+**Deployment script tự động thực hiện:**
+- ✅ Kiểm tra yêu cầu hệ thống (Python, pip)
+- ✅ Tạo và kích hoạt virtual environment
+- ✅ Cài đặt dependencies
+- ✅ Tạo file .env với cấu hình mặc định
+- ✅ Khởi tạo và migrate database
+- ✅ (Tùy chọn) Seed database với dữ liệu mẫu
+- ✅ (Production) Cài đặt WSGI server
+- ✅ (Tùy chọn) Tự động khởi động servers
+
+### Manual Deployment
+
+#### Development
 ```bash
 # Terminal 1: Backend
 cd backend
@@ -291,7 +327,9 @@ Truy cập:
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5000
 
-### Production (với Gunicorn)
+#### Production
+
+**Linux/Mac (với Gunicorn):**
 ```bash
 # Install gunicorn
 pip install gunicorn
@@ -301,6 +339,25 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 
 # Hoặc sử dụng config file
 gunicorn -c gunicorn.conf.py app:app
+```
+
+**Windows (với Waitress):**
+```powershell
+# Install waitress
+pip install waitress
+
+# Run production server
+cd backend
+venv\Scripts\Activate.ps1
+python run_production.py
+```
+
+**Windows Service (với NSSM):**
+```powershell
+# Download NSSM từ https://nssm.cc/download
+# Chạy với quyền Administrator:
+nssm install HungVuongPartogram "C:\path\to\venv\Scripts\python.exe" "C:\path\to\backend\run_production.py"
+nssm start HungVuongPartogram
 ```
 
 ### Docker (tùy chọn)

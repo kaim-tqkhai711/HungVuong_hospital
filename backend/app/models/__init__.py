@@ -16,6 +16,12 @@ class Patient(db.Model):
     gestational_week = db.Column(db.String(20), nullable=False)
     parity = db.Column(db.String(20), nullable=False)
     labor_diagnosis_time = db.Column(db.DateTime, nullable=False)
+    
+    # New fields - Thông tin tổng quan
+    membrane_rupture_date = db.Column(db.DateTime)  # Ngày giờ ối vỡ
+    risk_factors = db.Column(db.Text)  # Yếu tố nguy cơ
+    labor_induction_method = db.Column(db.String(20))  # CDTN hoặc KPCD
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -36,6 +42,9 @@ class Patient(db.Model):
             'gestational_week': self.gestational_week,
             'parity': self.parity,
             'labor_diagnosis_time': self.labor_diagnosis_time.isoformat() if self.labor_diagnosis_time else None,
+            'membrane_rupture_date': self.membrane_rupture_date.isoformat() if self.membrane_rupture_date else None,
+            'risk_factors': self.risk_factors,
+            'labor_induction_method': self.labor_induction_method,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

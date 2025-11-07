@@ -127,6 +127,16 @@ function renderPatientHeader(patient) {
         new Date(patient.labor_diagnosis_time).toLocaleString('vi-VN') :
         'Chưa xác định';
     
+    // Format membrane rupture date
+    const membraneRuptureTime = patient.membrane_rupture_date ? 
+        new Date(patient.membrane_rupture_date).toLocaleString('vi-VN') :
+        'Chưa vỡ ối';
+    
+    // Labor induction method display
+    const laborMethod = patient.labor_induction_method === 'CDTN' ? 'Chuyển dạ tự nhiên (CDTN)' :
+                        patient.labor_induction_method === 'KPCD' ? 'Kích phát chuyển dạ (KPCD)' :
+                        'Chưa xác định';
+    
     container.innerHTML = `
         <div class="patient-header-info">
             <div class="info-main">
@@ -145,8 +155,17 @@ function renderPatientHeader(patient) {
                 <div class="info-row">
                     <span class="info-item"><strong>Mã BN:</strong> ${patient.id}</span>
                     <span class="info-item"><strong>Tuần thai:</strong> ${patient.gestational_week}</span>
-                    <span class="info-item"><strong>Chẩn đoán chuyển dạ:</strong> ${laborDiagnosisTime}</span>
+                    <span class="info-item"><strong>Phương pháp:</strong> ${laborMethod}</span>
                 </div>
+                <div class="info-row">
+                    <span class="info-item"><strong>Chẩn đoán chuyển dạ:</strong> ${laborDiagnosisTime}</span>
+                    <span class="info-item"><strong>Ngày giờ ối vỡ:</strong> ${membraneRuptureTime}</span>
+                </div>
+                ${patient.risk_factors ? `
+                <div class="info-row">
+                    <span class="info-item full-width"><strong>⚠️ Yếu tố nguy cơ:</strong> ${patient.risk_factors}</span>
+                </div>
+                ` : ''}
             </div>
             <div class="overall-status ${statusBadge[overallStatus].class}">
                 <div class="status-icon">⚠️</div>
@@ -1405,6 +1424,10 @@ function showEditPatientModal() {
     const laborTime = currentPatient.labor_diagnosis_time ? 
         new Date(currentPatient.labor_diagnosis_time).toISOString().slice(0, 16) : '';
     
+    // Convert membrane_rupture_date to datetime-local format
+    const membraneTime = currentPatient.membrane_rupture_date ? 
+        new Date(currentPatient.membrane_rupture_date).toISOString().slice(0, 16) : '';
+    
     formContainer.innerHTML = `
         <form id="editPatientFormElement" class="add-patient-form">
             <div class="form-section">
@@ -1442,13 +1465,35 @@ function showEditPatientModal() {
                     <div class="form-group">
                         <label>Para * (4 chữ số):</label>
                         <input type="text" name="parity" value="${currentPatient.parity}" pattern="[0-9]{4}" maxlength="4" required>
-                        <small class="form-hint">Nhập 4 chữ số: Số lần có thai - Số lần sinh - Số lần sảy thai - Số con còn sống</small>
+                        <small class="form-hint">Nhập 4 chữ số: Số lần có thai - Số lần sinh đủ tháng - Số lần sinh non - Số lần sảy</small>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group full-width">
                         <label>Thời gian chẩn đoán chuyển dạ *:</label>
                         <input type="datetime-local" name="labor_diagnosis_time" value="${laborTime}" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ngày giờ ối vỡ:</label>
+                        <input type="datetime-local" name="membrane_rupture_date" value="${membraneTime}">
+                        <small class="form-hint">Để trống nếu ối chưa vỡ</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Phương pháp:</label>
+                        <select name="labor_induction_method">
+                            <option value="" ${!currentPatient.labor_induction_method ? 'selected' : ''}>-- Chọn --</option>
+                            <option value="CDTN" ${currentPatient.labor_induction_method === 'CDTN' ? 'selected' : ''}>Chuyển dạ tự nhiên (CDTN)</option>
+                            <option value="KPCD" ${currentPatient.labor_induction_method === 'KPCD' ? 'selected' : ''}>Kích phát chuyển dạ (KPCD)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>Yếu tố nguy cơ:</label>
+                        <textarea name="risk_factors" rows="3" placeholder="VD: Tiền sản giật, tiểu đường thai kỳ, thai to, ...">${currentPatient.risk_factors || ''}</textarea>
+                        <small class="form-hint">Ghi rõ các yếu tố nguy cơ nếu có</small>
                     </div>
                 </div>
             </div>
@@ -1499,7 +1544,10 @@ async function savePatientEdits(form) {
             room: formData.get('room').trim(),
             gestational_week: formData.get('gestational_week').trim(),
             parity: formData.get('parity').trim(),
-            labor_diagnosis_time: formData.get('labor_diagnosis_time')
+            labor_diagnosis_time: formData.get('labor_diagnosis_time'),
+            membrane_rupture_date: formData.get('membrane_rupture_date') || null,
+            risk_factors: formData.get('risk_factors').trim() || null,
+            labor_induction_method: formData.get('labor_induction_method') || null
         };
         
         // Validate required fields
