@@ -1,5 +1,4 @@
-# Deployment Script for Hệ thống Theo dõi Chuyển dạ - Bệnh viện Hùng Vương
-# PowerShell version for Windows deployment
+# Deployment Script - Hungvuong Partogram System
 
 param(
     [Parameter(Position=0)]
@@ -7,337 +6,192 @@ param(
     [string]$DeployEnv = 'development'
 )
 
-# Configuration
 $BackendDir = "backend"
 $FrontendDir = "frontend"
-$VenvDir = Join-Path $BackendDir "venv"
 $BackendPort = 5000
 $FrontendPort = 3000
 
-# Color functions
-function Write-Status {
-    param([string]$Message)
-    Write-Host "[" -NoNewline
-    Write-Host "✓" -ForegroundColor Green -NoNewline
-    Write-Host "] $Message"
-}
-
-function Write-Error-Message {
-    param([string]$Message)
-    Write-Host "[" -NoNewline
-    Write-Host "✗" -ForegroundColor Red -NoNewline
-    Write-Host "] $Message"
-}
-
-function Write-Warning-Message {
-    param([string]$Message)
-    Write-Host "[" -NoNewline
-    Write-Host "!" -ForegroundColor Yellow -NoNewline
-    Write-Host "] $Message"
-}
-
-function Write-Info {
-    param([string]$Message)
-    Write-Host "[" -NoNewline
-    Write-Host "i" -ForegroundColor Cyan -NoNewline
-    Write-Host "] $Message"
-}
-
-function Write-Header {
-    param([string]$Message)
-    Write-Host ""
-    Write-Host "================================" -ForegroundColor Cyan
-    Write-Host $Message -ForegroundColor Cyan
-    Write-Host "================================" -ForegroundColor Cyan
-    Write-Host ""
-}
-
-# Banner
-Write-Header "Hệ thống Theo dõi Chuyển dạ`nBệnh viện Hùng Vương"
-Write-Host "Deployment Mode: " -NoNewline
-Write-Host $DeployEnv -ForegroundColor Green
+Write-Host ""
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host "Hungvuong Partogram System" -ForegroundColor Cyan
+Write-Host "Deployment Mode: $DeployEnv" -ForegroundColor Cyan
+Write-Host "================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check prerequisites
-Write-Info "Checking prerequisites..."
+Write-Host "Checking prerequisites..." -ForegroundColor Cyan
 
-# Check Python
 $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
 if (-not $pythonCmd) {
-    Write-Error-Message "Python is not installed or not in PATH. Please install Python 3.8 or higher."
+    Write-Host "ERROR: Python is not installed or not in PATH" -ForegroundColor Red
     exit 1
 }
 
 $pythonVersion = & python --version 2>&1
-Write-Status "Python found: $pythonVersion"
+Write-Host "Python found: $pythonVersion" -ForegroundColor Green
 
-# Check pip
 $pipCmd = Get-Command pip -ErrorAction SilentlyContinue
 if (-not $pipCmd) {
-    Write-Error-Message "pip is not installed. Please install pip."
+    Write-Host "ERROR: pip is not installed" -ForegroundColor Red
     exit 1
 }
-Write-Status "pip found"
+Write-Host "pip found" -ForegroundColor Green
 
-# Check Python version
 $versionOutput = & python -c "import sys; print('.'.join(map(str, sys.version_info[:2])))"
 $versionNum = [version]$versionOutput
 $requiredVersion = [version]"3.8"
 
 if ($versionNum -lt $requiredVersion) {
-    Write-Error-Message "Python version must be 3.8 or higher. Current version: $versionOutput"
+    Write-Host "ERROR: Python version must be 3.8 or higher. Current: $versionOutput" -ForegroundColor Red
     exit 1
 }
-Write-Status "Python version $versionOutput is compatible"
+Write-Host "Python version $versionOutput is compatible" -ForegroundColor Green
 
-# ================================
-# Backend Deployment
-# ================================
-Write-Info "`n========== Backend Deployment =========="
+Write-Host ""
+Write-Host "========== Backend Deployment ==========" -ForegroundColor Cyan
+Write-Host ""
 
-# Navigate to backend directory
 if (-not (Test-Path $BackendDir)) {
-    Write-Error-Message "Backend directory not found: $BackendDir"
+    Write-Host "ERROR: Backend directory not found: $BackendDir" -ForegroundColor Red
     exit 1
 }
 
 Push-Location $BackendDir
 
 try {
-    # Create virtual environment if it doesn't exist
     if (-not (Test-Path "venv")) {
-        Write-Info "Creating virtual environment..."
+        Write-Host "Creating virtual environment..." -ForegroundColor Cyan
         & python -m venv venv
-        Write-Status "Virtual environment created"
+        Write-Host "Virtual environment created" -ForegroundColor Green
     } else {
-        Write-Status "Virtual environment already exists"
+        Write-Host "Virtual environment already exists" -ForegroundColor Green
     }
 
-    # Activate virtual environment
-    Write-Info "Activating virtual environment..."
-    $activateScript = "venv\Scripts\Activate.ps1"
-    
-    # Set execution policy for current process
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
-    
-    & $activateScript
-    Write-Status "Virtual environment activated"
+    Write-Host "Using virtual environment..." -ForegroundColor Cyan
 
-    # Upgrade pip
-    Write-Info "Upgrading pip..."
+    Write-Host "Upgrading pip..." -ForegroundColor Cyan
     & venv\Scripts\python.exe -m pip install --upgrade pip --quiet
-    Write-Status "pip upgraded"
+    Write-Host "pip upgraded" -ForegroundColor Green
 
-    # Install dependencies
-    Write-Info "Installing Python dependencies..."
+    Write-Host "Installing Python dependencies..." -ForegroundColor Cyan
     & venv\Scripts\pip.exe install -r requirements.txt --quiet
-    Write-Status "Dependencies installed"
+    Write-Host "Dependencies installed" -ForegroundColor Green
 
-    # Setup environment variables
     if (-not (Test-Path ".env")) {
         if (Test-Path ".env.example") {
-            Write-Info "Creating .env file from .env.example..."
+            Write-Host "Creating .env file from .env.example..." -ForegroundColor Cyan
             Copy-Item .env.example .env
-            Write-Warning-Message "Please update .env file with your configuration"
+            Write-Host "WARNING: Please update .env file" -ForegroundColor Yellow
         } else {
-            Write-Info "Creating default .env file..."
-            
-            # Generate secret key
+            Write-Host "Creating default .env file..." -ForegroundColor Cyan
             $secretKey = -join ((48..57) + (97..122) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-            
-            $envContent = @"
-FLASK_ENV=$DeployEnv
-FLASK_DEBUG=$( if ($DeployEnv -eq 'development') { '1' } else { '0' } )
-DATABASE_URL=sqlite:///partogram.db
-SECRET_KEY=$secretKey
-CORS_ORIGINS=http://localhost:$FrontendPort
-"@
+            $envContent = "FLASK_ENV=$DeployEnv`nFLASK_DEBUG=$(if ($DeployEnv -eq 'development') { '1' } else { '0' })`nDATABASE_URL=sqlite:///partogram.db`nSECRET_KEY=$secretKey`nCORS_ORIGINS=http://localhost:$FrontendPort"
             $envContent | Out-File -FilePath .env -Encoding utf8
-            Write-Status ".env file created with default values"
+            Write-Host ".env file created" -ForegroundColor Green
         }
     } else {
-        Write-Status ".env file already exists"
+        Write-Host ".env file already exists" -ForegroundColor Green
     }
 
-    # Database setup
-    Write-Info "Setting up database..."
-
-    # Set environment variable for Flask
+    Write-Host "Setting up database..." -ForegroundColor Cyan
     $env:FLASK_APP = "app.py"
 
-    # Check if migrations directory exists
     if (-not (Test-Path "migrations")) {
-        Write-Info "Initializing database migrations..."
+        Write-Host "Initializing database migrations..." -ForegroundColor Cyan
         & venv\Scripts\flask.exe db init
-        Write-Status "Database migrations initialized"
+        Write-Host "Database migrations initialized" -ForegroundColor Green
     }
 
-    # Run migrations
-    Write-Info "Running database migrations..."
+    Write-Host "Running database migrations..." -ForegroundColor Cyan
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     try {
         & venv\Scripts\flask.exe db migrate -m "Deployment migration $timestamp" 2>&1 | Out-Null
-    } catch {
-        Write-Warning-Message "No new migrations to apply"
-    }
+    } catch {}
     & venv\Scripts\flask.exe db upgrade
-    Write-Status "Database migrations applied"
+    Write-Host "Database migrations applied" -ForegroundColor Green
 
-    # Check if database needs seeding
     if ($DeployEnv -eq 'development') {
         $response = Read-Host "Do you want to seed the database with sample data? (y/n)"
         if ($response -eq 'y' -or $response -eq 'Y') {
-            Write-Info "Seeding database..."
+            Write-Host "Seeding database..." -ForegroundColor Cyan
             try {
                 & venv\Scripts\flask.exe seed_db
-                Write-Status "Database seeded with sample data"
+                Write-Host "Database seeded" -ForegroundColor Green
             } catch {
-                Write-Warning-Message "Seed command not available. You may need to add sample data manually."
+                Write-Host "WARNING: Seed command not available" -ForegroundColor Yellow
             }
         }
     }
 
 } finally {
-    # Return to root directory
     Pop-Location
 }
 
-# ================================
-# Frontend Deployment
-# ================================
-Write-Info "`n========== Frontend Deployment =========="
+Write-Host ""
+Write-Host "========== Frontend Deployment ==========" -ForegroundColor Cyan
+Write-Host ""
 
-# Check if frontend directory exists
 if (-not (Test-Path $FrontendDir)) {
-    Write-Error-Message "Frontend directory not found: $FrontendDir"
+    Write-Host "ERROR: Frontend directory not found: $FrontendDir" -ForegroundColor Red
     exit 1
 }
 
-Write-Status "Frontend files verified"
+Write-Host "Frontend files verified" -ForegroundColor Green
 
-# ================================
-# Production Setup
-# ================================
 if ($DeployEnv -eq 'production') {
-    Write-Info "`n========== Production Setup =========="
-    
-    # Install waitress (Windows WSGI server)
-    Write-Info "Installing production server (waitress)..."
+    Write-Host ""
+    Write-Host "========== Production Setup ==========" -ForegroundColor Cyan
+    Write-Host ""
     Push-Location $BackendDir
     try {
+        Write-Host "Installing waitress..." -ForegroundColor Cyan
         & venv\Scripts\pip.exe install waitress --quiet
-        Write-Status "Waitress installed"
+        Write-Host "Waitress installed" -ForegroundColor Green
         
-        # Create production server script
         if (-not (Test-Path "run_production.py")) {
-            Write-Info "Creating production server script..."
-            $prodScript = @"
-from waitress import serve
-from app import app
-import os
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    print(f'Starting production server on port {port}...')
-    serve(app, host='0.0.0.0', port=port, threads=4)
-"@
+            $prodScript = "from waitress import serve`nfrom app import app`nimport os`n`nif __name__ == '__main__':`n    port = int(os.environ.get('PORT', 5000))`n    print(f'Starting production server on port {port}...')`n    serve(app, host='0.0.0.0', port=port, threads=4)"
             $prodScript | Out-File -FilePath run_production.py -Encoding utf8
-            Write-Status "Production server script created"
+            Write-Host "Production server script created" -ForegroundColor Green
         }
     } finally {
         Pop-Location
     }
-    
-    Write-Warning-Message "`nFor production deployment, consider:"
-    Write-Info "1. Setting up IIS as reverse proxy"
-    Write-Info "2. Using NSSM to run as Windows service"
-    Write-Info "3. Configuring SSL/HTTPS"
 }
 
-# ================================
-# Create Windows Service (NSSM)
-# ================================
-if ($DeployEnv -eq 'production') {
-    $response = Read-Host "`nDo you want instructions to create a Windows service? (y/n)"
-    if ($response -eq 'y' -or $response -eq 'Y') {
-        Write-Info "`nTo create a Windows service using NSSM:"
-        Write-Host ""
-        Write-Host "1. Download NSSM from https://nssm.cc/download" -ForegroundColor Yellow
-        Write-Host "2. Run the following commands as Administrator:" -ForegroundColor Yellow
-        Write-Host ""
-        $currentPath = Get-Location
-        $pythonPath = Join-Path $currentPath "$BackendDir\venv\Scripts\python.exe"
-        $scriptPath = Join-Path $currentPath "$BackendDir\run_production.py"
-        
-        Write-Host "   nssm install HungVuongPartogram `"$pythonPath`" `"$scriptPath`"" -ForegroundColor Cyan
-        Write-Host "   nssm set HungVuongPartogram AppDirectory `"$(Join-Path $currentPath $BackendDir)`"" -ForegroundColor Cyan
-        Write-Host "   nssm set HungVuongPartogram Description `"Hungvuong Partogram System`"" -ForegroundColor Cyan
-        Write-Host "   nssm start HungVuongPartogram" -ForegroundColor Cyan
-        Write-Host ""
-    }
-}
-
-# ================================
-# Final Summary
-# ================================
-Write-Header "Deployment completed successfully!"
+Write-Host ""
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host "Deployment completed!" -ForegroundColor Cyan
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host ""
 
 if ($DeployEnv -eq 'development') {
-    Write-Info "To start the development servers:`n"
-    
-    Write-Info "Terminal 1 (Backend):"
+    Write-Host "To start the servers:" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Terminal 1 (Backend):" -ForegroundColor Cyan
     Write-Host "  cd $BackendDir" -ForegroundColor Yellow
     Write-Host "  venv\Scripts\Activate.ps1" -ForegroundColor Yellow
     Write-Host "  python app.py" -ForegroundColor Yellow
     Write-Host ""
-    
-    Write-Info "Terminal 2 (Frontend):"
+    Write-Host "Terminal 2 (Frontend):" -ForegroundColor Cyan
     Write-Host "  cd $FrontendDir" -ForegroundColor Yellow
     Write-Host "  python -m http.server $FrontendPort" -ForegroundColor Yellow
     Write-Host ""
-    
-    Write-Info "Then access:"
-    Write-Host "  Frontend: " -NoNewline
-    Write-Host "http://localhost:$FrontendPort" -ForegroundColor Green
-    Write-Host "  Backend:  " -NoNewline
-    Write-Host "http://localhost:$BackendPort" -ForegroundColor Green
+    Write-Host "Access at:" -ForegroundColor Cyan
+    Write-Host "  Frontend: http://localhost:$FrontendPort" -ForegroundColor Green
+    Write-Host "  Backend:  http://localhost:$BackendPort" -ForegroundColor Green
     Write-Host ""
     
-    # Option to start servers now
-    $response = Read-Host "Do you want to start the servers now? (y/n)"
+    $response = Read-Host "Start servers now? (y/n)"
     if ($response -eq 'y' -or $response -eq 'Y') {
-        Write-Info "Starting servers..."
-        
-        # Start backend in new window
+        Write-Host "Starting servers..." -ForegroundColor Cyan
         $backendCmd = "cd '$BackendDir'; venv\Scripts\Activate.ps1; python app.py"
         Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd
-        Write-Status "Backend server started in new window"
-        
-        # Wait a moment for backend to start
         Start-Sleep -Seconds 2
-        
-        # Start frontend in new window
         $frontendCmd = "cd '$FrontendDir'; python -m http.server $FrontendPort"
         Start-Process powershell -ArgumentList "-NoExit", "-Command", $frontendCmd
-        Write-Status "Frontend server started in new window"
-        
-        Write-Host ""
-        Write-Status "Both servers are running in separate windows!"
-        Write-Info "Close those windows to stop the servers"
+        Write-Host "Servers started in new windows!" -ForegroundColor Green
     }
-} else {
-    Write-Info "To start the production server:`n"
-    Write-Host "  cd $BackendDir" -ForegroundColor Yellow
-    Write-Host "  venv\Scripts\Activate.ps1" -ForegroundColor Yellow
-    Write-Host "  python run_production.py" -ForegroundColor Yellow
-    Write-Host ""
-    
-    Write-Info "Or install as Windows service using NSSM (see instructions above)"
-    Write-Host ""
-    
-    Write-Info "For frontend in production, serve static files using IIS or nginx."
 }
 
 Write-Host ""
-Write-Host "Happy deploying! 🚀" -ForegroundColor Green
+Write-Host "Happy deploying!" -ForegroundColor Green
 Write-Host ""
