@@ -141,6 +141,13 @@ class ApiService {
         return this.makeRequest(`/assessments/${patientId}/status`);
     }
 
+    async acknowledgePartogramRecord(recordId, payload = {}) {
+        return this.makeRequest(`/partogram/records/${recordId}/acknowledge`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+
     // Alert endpoints
     async getPatientAlerts(patientId, includeAcknowledged = false) {
         return this.makeRequest(`/patients/${patientId}/alerts?include_acknowledged=${includeAcknowledged}`);

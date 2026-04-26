@@ -1,8 +1,19 @@
 // Patient detail page functionality
 let currentPatient = null;
+let vitalsChartInstance = null;
+let laborChartInstance = null;
+let currentRole = sessionStorage.getItem('partogram_role') || 'nurse';
 
 // Initialize patient detail page
 function initializePatientDetail() {
+    // Set initial role value in UI
+    const roleSelect = document.getElementById('currentRole');
+    if(roleSelect) {
+        roleSelect.value = currentRole;
+    }
+    
+    updateUIRole();
+    
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
@@ -20,6 +31,31 @@ function initializePatientDetail() {
     console.log('Loading patient detail for ID:', patientId);
     loadPatientDetail(patientId);
     setupEventListeners();
+}
+
+// Role Switcher Logic
+function handleRoleChange() {
+    const roleSelect = document.getElementById('currentRole');
+    if (roleSelect) {
+        currentRole = roleSelect.value;
+        sessionStorage.setItem('partogram_role', currentRole);
+        updateUIRole();
+    }
+}
+
+function updateUIRole() {
+    const btnAddRecord = document.getElementById('btnAddRecord');
+    
+    // Nữ hộ sinh mới được thêm lần khám (hoặc Demo: bác sĩ cũng có nhưng ta giả định Nữ hộ sinh nhập)
+    if (btnAddRecord) {
+        // Yêu cầu thiết kế: Ẩn/hiện nút chức năng tùy role
+        btnAddRecord.style.display = currentRole === 'nurse' ? 'inline-block' : 'none';
+    }
+    
+    // Render lại nếu đã có data để đổi nút Xác nhận
+    if (currentPatient && currentPatient.partogramData) {
+        renderPartogramTable(currentPatient);
+    }
 }
 
 // Update date and time
@@ -43,10 +79,17 @@ function updateDateTime() {
     document.getElementById('currentTime').textContent = timeStr;
 }
 
-// Get patient ID from URL parameters
+// Get patient ID from URL parameters or fallback to SessionStorage
 function getPatientIdFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('id');
+    let id = urlParams.get('id');
+    
+    // Fallback: Lấy từ sessionStorage nếu bị npx serve cắt mất query param
+    if (!id) {
+        id = sessionStorage.getItem('current_patient_id');
+    }
+    
+    return id;
 }
 
 // Load patient detail data
@@ -87,6 +130,15 @@ async function loadPatientDetail(patientId) {
         // Render UI
         renderPatientHeader(currentPatient);
         renderPartogramTable(currentPatient);
+        try {
+            if (typeof Chart !== 'undefined') {
+                renderCharts(currentPatient);
+            } else {
+                console.warn('Chart.js is not loaded. Skipping renderCharts.');
+            }
+        } catch (chartErr) {
+            console.error('Lỗi khi vẽ biểu đồ:', chartErr);
+        }
         
         showLoading(false);
         
@@ -95,10 +147,10 @@ async function loadPatientDetail(patientId) {
         showToast('Lỗi khi tải thông tin bệnh nhân: ' + error.message, 'error');
         showLoading(false);
         
-        // Redirect back to index on error
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 2000);
+        // Redirect back to index on error (Tạm tắt để debug:
+        // setTimeout(() => {
+        //     window.location.href = 'index.html';
+        // }, 4000);
     }
 }
 
@@ -262,8 +314,8 @@ function renderPartogramTable(patient) {
         let row = `<tr class="data-row ${category}">
             <td class="sticky-col param-label"><strong>${label}</strong></td>`;
         
-        data.forEach(record => {
-            const value = getValue(record);
+        data.forEach((record, idx) => {
+            const value = getValue(record, idx);
             const cellClass = getClass ? getClass(record) : '';
             row += `<td class="${cellClass}">${value || '-'}</td>`;
         });
@@ -461,6 +513,24 @@ function renderPartogramTable(patient) {
         return plan.length > 30 ? plan.substring(0, 30) + '...' : plan;
     });
     
+    // PHÂN QUYỀN VÀ XÁC NHẬN
+    bodyHTML += '<tr class="section-header"><td colspan="' + (data.length + 1) + '">PHÂN QUYỀN & XÁC NHẬN</td></tr>';
+    bodyHTML += createRow('Người thực hiện', 'role-ack', r => {
+        return r.recorded_by_role === 'doctor' ? '👨‍⚕️ Bác sĩ' : '👩‍⚕️ Nữ hộ sinh';
+    });
+    bodyHTML += createRow('Bác sĩ xác nhận', 'role-ack', (r) => {
+        if (r.acknowledged_at || r.acknowledged_by_doctor_id) {
+            let signedText = r.doctor_signature ? ' (Kèm chữ ký)' : '';
+            return `<span style="color: #10b981; font-weight: bold;">✓ Đã xác nhận${signedText}</span>`;
+        } else {
+            if (currentRole === 'doctor') {
+                return `<button class="btn-acknowledge" onclick="showAcknowledgeModal('${r.id}')" style="padding: 4px 10px; font-size: 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: all 0.2s;">Xác nhận</button>`;
+            } else {
+                return `<span style="color: #9ca3af; font-style: italic;">Chờ xác nhận</span>`;
+            }
+        }
+    });
+
     bodyHTML += '</tbody>';
     
     table.innerHTML = headerHTML + bodyHTML;
@@ -793,6 +863,7 @@ async function saveNewRecord(form) {
             
             // Additional fields (if backend supports them)
             examination_time: formData.get('examination_time') || '',
+            recorded_by_role: currentRole, // Truyền role để lưu vào backend
             companion: formData.get('companion') === 'true',
             vas_score: parseInt(formData.get('vas')) || 0,
             drinking: formData.get('drinking') === 'true',
@@ -830,6 +901,7 @@ async function saveNewRecord(form) {
         // Re-render
         renderPartogramTable(currentPatient);
         renderPatientHeader(currentPatient);
+        renderCharts(currentPatient);
         
         // Close modal
         closeAddRecordModal();
@@ -840,6 +912,83 @@ async function saveNewRecord(form) {
     } catch (error) {
         console.error('Error saving record:', error);
         showToast('Lỗi khi lưu dữ liệu: ' + error.message, 'error');
+        showLoading(false);
+    }
+}
+
+// Variables for Acknowledge Modal Support
+let signaturePadContext = null;
+let isSignatureDrawing = false;
+let currentAcknowledgeRecordId = null;
+
+function showAcknowledgeModal(recordId) {
+    currentAcknowledgeRecordId = recordId;
+    document.getElementById('ackTreatmentPlan').value = '';
+    
+    // Setup canvas
+    const canvas = document.getElementById('signatureCanvas');
+    signaturePadContext = canvas.getContext('2d');
+    
+    // Clear canvas
+    clearSignature();
+    
+    // Sync canvas width with container width smoothly
+    setTimeout(() => {
+        canvas.width = canvas.parentElement.offsetWidth;
+        // Re-apply line styles
+        signaturePadContext.lineWidth = 2;
+        signaturePadContext.lineCap = 'round';
+        signaturePadContext.strokeStyle = '#000';
+    }, 50);
+    
+    document.getElementById('acknowledgeModal').style.display = 'flex';
+}
+
+function clearSignature() {
+    const canvas = document.getElementById('signatureCanvas');
+    if (signaturePadContext) {
+        signaturePadContext.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function closeAcknowledgeModal() {
+    document.getElementById('acknowledgeModal').style.display = 'none';
+    currentAcknowledgeRecordId = null;
+}
+
+// Bác sĩ bấm Xác nhận & Ký tên
+async function submitAcknowledge() {
+    if (!currentAcknowledgeRecordId) return;
+    
+    try {
+        const treatmentPlan = document.getElementById('ackTreatmentPlan').value;
+        const canvas = document.getElementById('signatureCanvas');
+        
+        // Export ảnh PNG Base64
+        const signatureBase64 = canvas.toDataURL('image/png');
+
+        showLoading(true);
+        const apiService = new ApiService();
+        // Cập nhật lên API với JSON payload
+        const response = await apiService.acknowledgePartogramRecord(currentAcknowledgeRecordId, {
+            treatment_plan: treatmentPlan,
+            signature_data: signatureBase64
+        });
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Server lỗi khi xác nhận');
+        }
+
+        showToast('✓ Đã xác nhận & lưu y lệnh thành công!', 'success');
+        
+        closeAcknowledgeModal();
+        
+        // Reload lại detail
+        await loadPatientDetail(currentPatient.id);
+        
+    } catch (error) {
+        console.error('Error acknowledge record:', error);
+        showToast('Lỗi khi xác nhận: ' + error.message, 'error');
         showLoading(false);
     }
 }
@@ -889,8 +1038,83 @@ async function saveOutcome() {
     }
 }
 
-// Event listeners setup
+// Function to handle signature canvas drawing
+function setupSignatureEvents() {
+    const canvas = document.getElementById('signatureCanvas');
+    if (!canvas) return;
+    
+    // Get mouse position relative to canvas
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+    
+    function startDrawing(e) {
+        // Prevent scrolling on touch devices while drawing
+        if(e.type.includes('touch')) e.preventDefault();
+        
+        isSignatureDrawing = true;
+        const pos = getPos(e);
+        if (signaturePadContext) {
+            signaturePadContext.beginPath();
+            signaturePadContext.moveTo(pos.x, pos.y);
+        }
+    }
+    
+    function draw(e) {
+        if (!isSignatureDrawing) return;
+        if(e.type.includes('touch')) e.preventDefault();
+        
+        const pos = getPos(e);
+        if (signaturePadContext) {
+            signaturePadContext.lineTo(pos.x, pos.y);
+            signaturePadContext.stroke();
+        }
+    }
+    
+    function stopDrawing() {
+        if (isSignatureDrawing && signaturePadContext) {
+            isSignatureDrawing = false;
+            signaturePadContext.closePath();
+        }
+    }
+    
+    // Mouse events
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    
+    // Touch events for mobile/tablet
+    canvas.addEventListener('touchstart', startDrawing, {passive: false});
+    canvas.addEventListener('touchmove', draw, {passive: false});
+    canvas.addEventListener('touchend', stopDrawing);
+    canvas.addEventListener('touchcancel', stopDrawing);
+}
+
+    // Event listeners setup
 function setupEventListeners() {
+    // Acknowledge Modal events
+    const closeAcknowledgeBtn = document.getElementById('closeAcknowledgeModal');
+    if (closeAcknowledgeBtn) closeAcknowledgeBtn.addEventListener('click', closeAcknowledgeModal);
+    
+    const cancelAcknowledgeBtn = document.getElementById('btnCancelAcknowledge');
+    if (cancelAcknowledgeBtn) cancelAcknowledgeBtn.addEventListener('click', closeAcknowledgeModal);
+    
+    const submitAcknowledgeBtn = document.getElementById('btnSaveAcknowledge');
+    if (submitAcknowledgeBtn) submitAcknowledgeBtn.addEventListener('click', submitAcknowledge);
+    
+    const clearSignatureBtn = document.getElementById('btnClearSignature');
+    if (clearSignatureBtn) clearSignatureBtn.addEventListener('click', clearSignature);
+
+    // Setup Canvas Drawing logic
+    setupSignatureEvents();
+
     // Overview button
     document.getElementById('btnOverview').addEventListener('click', showOverviewModal);
     
@@ -1615,5 +1839,190 @@ async function savePatientEdits(form) {
     } catch (error) {
         console.error('Error updating patient:', error);
         showToast('Lỗi khi cập nhật thông tin: ' + error.message, 'error');
+    }
+}
+
+// Render Vitals and Labor Charts using Chart.js
+function renderCharts(patient) {
+    const dataRecords = patient.partogramData || [];
+    
+    // Data extraction
+    const labels = [];
+    const pulseData = [];
+    const systolicData = [];
+    const diastolicData = [];
+    const fhrData = [];
+    const cervixData = [];
+    const stationData = [];
+
+    dataRecords.forEach((record) => {
+        // Labels
+        let displayTime;
+        if (record.examination_time) {
+            displayTime = record.examination_time.length <= 5 ? record.examination_time : 
+                new Date(record.examination_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            displayTime = new Date(record.recorded_at).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        labels.push(displayTime);
+        
+        // Vitals
+        pulseData.push(record.pulse || record.mother?.pulse || null);
+        systolicData.push(record.systolic_bp || record.mother?.systolic_bp || null);
+        diastolicData.push(record.diastolic_bp || record.mother?.diastolic_bp || null);
+        
+        // Labor
+        fhrData.push(record.fetal_heart_rate || record.fetus?.fetal_heart_rate || null);
+        cervixData.push(record.cervix_dilation || record.labor?.cervix_dilation || null);
+        
+        // Station
+        const stationVal = record.station || record.labor?.station;
+        let numStation = null;
+        if (stationVal) {
+            numStation = parseFloat(stationVal.toString().replace('+', ''));
+        }
+        stationData.push(numStation);
+    });
+
+    // 1. Vitals Chart (Mạch, Huyết áp)
+    const vitalsCtx = document.getElementById('vitalsChart');
+    if (vitalsCtx) {
+        if (vitalsChartInstance) {
+            vitalsChartInstance.destroy();
+        }
+        vitalsChartInstance = new Chart(vitalsCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Mạch (lần/phút)',
+                        data: pulseData,
+                        borderColor: '#ef4444',
+                        backgroundColor: '#ef4444',
+                        borderWidth: 2,
+                        pointStyle: 'circle',
+                        pointRadius: 5,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'HA Tâm thu (mmHg)',
+                        data: systolicData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#3b82f6',
+                        borderWidth: 2,
+                        pointStyle: 'rect',
+                        pointRadius: 5,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'HA Tâm trương (mmHg)',
+                        data: diastolicData,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: '#8b5cf6',
+                        borderWidth: 2,
+                        pointStyle: 'rect', 
+                        pointRadius: 5,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 40,
+                        max: 200,
+                        title: { display: true, text: 'Trị số' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // 2. Labor Chart (Cổ tử cung, Độ lọt, Tim thai)
+    const laborCtx = document.getElementById('laborChart');
+    if (laborCtx) {
+        if (laborChartInstance) {
+            laborChartInstance.destroy();
+        }
+        laborChartInstance = new Chart(laborCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Mở CTC (cm)',
+                        data: cervixData,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: '#8b5cf6',
+                        borderWidth: 2,
+                        pointStyle: 'crossRot',
+                        pointRadius: 6,
+                        pointBorderWidth: 2,
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Độ lọt',
+                        data: stationData,
+                        borderColor: '#10b981',
+                        backgroundColor: '#10b981',
+                        borderWidth: 2,
+                        pointStyle: 'circle',
+                        pointRadius: 5,
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Tim thai',
+                        data: fhrData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: '#f59e0b',
+                        borderWidth: 2,
+                        pointStyle: 'triangle', 
+                        pointRadius: 5,
+                        tension: 0.3,
+                        yAxisID: 'y2'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 10,
+                        position: 'left',
+                        title: { display: true, text: 'Mở CTC (cm)' }
+                    },
+                    y1: {
+                        min: -3,
+                        max: 3,
+                        position: 'right',
+                        title: { display: true, text: 'Độ lọt' },
+                        grid: { drawOnChartArea: false }
+                    },
+                    y2: {
+                        min: 80,
+                        max: 200,
+                        position: 'right',
+                        title: { display: true, text: 'Tim thai' },
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
     }
 }

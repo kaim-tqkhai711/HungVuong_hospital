@@ -119,6 +119,12 @@ class PartogramRecord(db.Model):
     doctor_assessment = db.Column(db.Text)
     treatment_plan = db.Column(db.Text)
     
+    # Workflow tracking (who recorded and who verified)
+    recorded_by_role = db.Column(db.String(20), default='nurse')
+    acknowledged_by_doctor_id = db.Column(db.String(100), nullable=True)
+    acknowledged_at = db.Column(db.DateTime, nullable=True)
+    doctor_signature = db.Column(db.Text, nullable=True)  # Base64 signature image
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -179,6 +185,10 @@ class PartogramRecord(db.Model):
             'nurse_assessment': self.nurse_assessment,
             'doctor_assessment': self.doctor_assessment,
             'treatment_plan': self.treatment_plan,
+            'recorded_by_role': self.recorded_by_role,
+            'acknowledged_by_doctor_id': self.acknowledged_by_doctor_id,
+            'acknowledged_at': self.acknowledged_at.isoformat() if self.acknowledged_at else None,
+            'doctor_signature': self.doctor_signature,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
@@ -195,6 +205,7 @@ class Assessment(db.Model):
     doctor_assessment = db.Column(db.Text)
     treatment_plan = db.Column(db.Text)
     
+    assessor_role = db.Column(db.String(20), nullable=False, default='doctor') # 'doctor', 'nurse'
     assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
     assessed_by = db.Column(db.String(100))  # User who made the assessment
     
@@ -209,6 +220,7 @@ class Assessment(db.Model):
             'nurse_assessment': self.nurse_assessment,
             'doctor_assessment': self.doctor_assessment,
             'treatment_plan': self.treatment_plan,
+            'assessor_role': self.assessor_role,
             'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None,
             'assessed_by': self.assessed_by
         }

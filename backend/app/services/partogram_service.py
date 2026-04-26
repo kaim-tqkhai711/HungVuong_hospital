@@ -123,6 +123,7 @@ class PartogramService:
             recorded_at=recorded_at,
             examination_time=record_data.get('examination_time'),
             time_since_dilation=record_data.get('time_since_dilation'),
+            recorded_by_role=record_data.get('recorded_by_role', 'nurse'),
             
             # Supportive care - flat structure
             companion=record_data.get('companion', False),
@@ -319,3 +320,21 @@ class PartogramService:
         db.session.delete(record)
         db.session.commit()
         return True
+
+    def acknowledge_partogram_record(self, record_id: int, doctor_id: str, treatment_plan: str = None, signature_data: str = None) -> Optional[PartogramRecord]:
+        """Acknowledge a partogram record and attach doctor's orders/signature"""
+        record = PartogramRecord.query.get(record_id)
+        if not record:
+            return None
+        
+        record.acknowledged_at = datetime.utcnow()
+        record.acknowledged_by_doctor_id = doctor_id
+        
+        if treatment_plan:
+            record.treatment_plan = treatment_plan
+            
+        if signature_data:
+            record.doctor_signature = signature_data
+        
+        db.session.commit()
+        return record

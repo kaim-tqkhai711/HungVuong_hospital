@@ -233,6 +233,11 @@ class PatientListApp {
     openPatientDetail(patientId) {
         // Navigate to patient detail page
         console.log('Navigating to patient detail, ID:', patientId);
+        
+        // Backup ID vào sessionStorage đề phòng trường hợp web server (như npx serve)
+        // tự động cắt bỏ phần ?id=... trong URL (Clean URLs config).
+        sessionStorage.setItem('current_patient_id', patientId);
+        
         const url = `patient-detail.html?id=${patientId}`;
         console.log('Generated URL:', url);
         window.location.href = url;

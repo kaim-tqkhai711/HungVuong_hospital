@@ -104,6 +104,42 @@ def delete_partogram_record(record_id):
             'message': str(e)
         }), 500
 
+@partogram_bp.route('/records/<int:record_id>/acknowledge', methods=['POST'])
+def acknowledge_partogram_record(record_id):
+    """Acknowledge a partogram record"""
+    try:
+        # Lấy thông tin từ request
+        if request.is_json:
+            data = request.json
+            doctor_id = data.get('doctor_id', 'doc_demo')
+            treatment_plan = data.get('treatment_plan')
+            signature_data = data.get('signature_data')
+        else:
+            doctor_id = 'doc_demo'
+            treatment_plan = None
+            signature_data = None
+            
+        record = partogram_service.acknowledge_partogram_record(record_id, doctor_id, treatment_plan, signature_data)
+        
+        if not record:
+            return jsonify({
+                'success': False,
+                'error': 'Không tìm thấy bản ghi'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': record.to_dict(),
+            'message': 'Đã xác nhận dữ liệu thành công'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': 'Lỗi khi xác nhận dữ liệu',
+            'message': str(e)
+        }), 500
+
 
 @partogram_bp.route('/<patient_id>/timeline', methods=['GET'])
 def get_timeline_data(patient_id):
