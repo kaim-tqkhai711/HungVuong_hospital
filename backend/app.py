@@ -128,5 +128,9 @@ def seed_db():
     create_tables()  # Ensure tables exist first
     seed_data()
 
+# Auto-create tables on startup (works with both dev and gunicorn)
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
