@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.services.partogram_service import PartogramService
+from src.services.partogram_service import PartogramService
 
 partogram_bp = Blueprint('partogram', __name__)
 partogram_service = PartogramService()

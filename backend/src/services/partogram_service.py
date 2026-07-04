@@ -1,6 +1,6 @@
-from app.models import Patient, PartogramRecord, Assessment
-from app.services.alert_service import AlertService
-from app import db
+from src.models import Patient, PartogramRecord, Assessment
+from src.services.alert_service import AlertService
+from src import db
 from datetime import datetime
 from typing import List, Dict, Optional
 

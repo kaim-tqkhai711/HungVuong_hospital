@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from app import create_app
+from src import create_app
 
 # Load environment variables from .env file first
 load_dotenv()
@@ -12,8 +12,8 @@ app = create_app(os.environ.get('FLASK_ENV', 'development'))
 application = app
 
 # Import after app creation to avoid circular imports
-from app import db
-from app.models import Patient, PartogramRecord, Assessment, Alert, Outcome
+from src import db
+from src.models import Patient, PartogramRecord, Assessment, Alert, Outcome
 
 # Make sure Flask can find the app instance
 def create_tables():

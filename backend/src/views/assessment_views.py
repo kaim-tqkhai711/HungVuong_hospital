@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
-from app.models import Assessment, Outcome
-from app.services.partogram_service import PartogramService
-from app import db
+from src.models import Assessment, Outcome
+from src.services.partogram_service import PartogramService
+from src import db
 from datetime import datetime
 
 assessment_bp = Blueprint('assessments', __name__)
