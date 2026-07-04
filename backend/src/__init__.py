@@ -37,12 +37,12 @@ def create_app(config_name='development'):
     })
     
     # Import models after db is initialized 
-    from app.models import Patient, PartogramRecord, Assessment, Alert, Outcome
+    from src.models import Patient, PartogramRecord, Assessment, Alert, Outcome
     
     # Register blueprints
-    from app.views.patient_views import patient_bp
-    from app.views.partogram_views import partogram_bp
-    from app.views.assessment_views import assessment_bp
+    from src.views.patient_views import patient_bp
+    from src.views.partogram_views import partogram_bp
+    from src.views.assessment_views import assessment_bp
     
     app.register_blueprint(patient_bp, url_prefix='/api/patients')
     app.register_blueprint(partogram_bp, url_prefix='/api/partogram')

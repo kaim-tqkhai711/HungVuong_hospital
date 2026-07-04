@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app.services.partogram_service import PartogramService
-from app.services.alert_service import AlertService
+from src.services.partogram_service import PartogramService
+from src.services.alert_service import AlertService
 from datetime import datetime
 
 patient_bp = Blueprint('patients', __name__)

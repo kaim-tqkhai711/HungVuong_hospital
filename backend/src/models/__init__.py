@@ -51,7 +51,7 @@ class Patient(db.Model):
     
     def get_current_status(self):
         """Calculate current patient status based on latest records"""
-        from app.services.alert_service import AlertService
+        from src.services.alert_service import AlertService
         latest_record = PartogramRecord.query.filter_by(patient_id=self.id)\
             .order_by(PartogramRecord.recorded_at.desc()).first()
         
