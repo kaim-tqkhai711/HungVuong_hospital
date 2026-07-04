@@ -1,6 +1,6 @@
-# 🖥️ Host Service - Backend Hệ thống Partogram Bệnh viện Hùng Vương
+# Host Service — Backend Hệ thống Partogram Bệnh viện Hùng Vương
 
-> Tài liệu mô tả cách cấu hình, vận hành và quản lý Host Service cho Backend API. Bao gồm các chế độ chạy, quản lý process, giám sát, bảo mật và mở rộng.
+> Cách cấu hình, vận hành và quản lý Host Service cho Backend API: chế độ chạy, quản lý process, giám sát, bảo mật, mở rộng. Viết cho người sẽ trực tiếp deploy/vận hành server này, không phải tài liệu giới thiệu chung chung.
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Tổng quan Host Service
 
-Host Service là thành phần chịu trách nhiệm khởi chạy, duy trì và quản lý vòng đời (lifecycle) của Backend API server. Tùy theo môi trường, Host Service có thể là:
+Host Service chịu trách nhiệm khởi chạy, duy trì và quản lý lifecycle của Backend API server. Tùy môi trường:
 
 | Môi trường | Host Service | Port mặc định | Mô tả |
 |-----------|-------------|---------------|-------|
@@ -58,7 +58,7 @@ graph LR
 
 ### Application Factory & Entry Point
 
-Backend sử dụng **Application Factory Pattern**. Host Service khởi tạo app thông qua:
+Backend dùng **Application Factory Pattern**. Host Service khởi tạo app qua:
 
 ```
 backend/
@@ -117,6 +117,8 @@ sequenceDiagram
 | `TIMEZONE` | ❌ | `Asia/Ho_Chi_Minh` | Timezone ứng dụng |
 | `DATETIME_FORMAT` | ❌ | `%Y-%m-%d %H:%M:%S` | Format hiển thị datetime |
 
+Default `SECRET_KEY` và `CORS_ORIGINS=*` là giá trị dev-only. Nếu file `.env` production quên set 2 biến này, hệ thống vẫn chạy bình thường — không fail, không warning rõ ràng — nhưng đang chạy với secret key public và CORS mở toàn bộ. Đây là loại lỗi cấu hình im lặng, dễ bị bỏ sót nhất trong checklist deploy.
+
 ### File .env mẫu cho Production
 
 ```env
@@ -169,13 +171,13 @@ flask run --host=0.0.0.0 --port=5000 --reload --debugger
 
 | Tính năng | Trạng thái | Ghi chú |
 |-----------|-----------|---------|
-| Auto-reload | ✅ Bật | Tự khởi động lại khi code thay đổi |
-| Debug mode | ✅ Bật | Hiển thị stack trace chi tiết |
-| Interactive debugger | ✅ Bật | Werkzeug debugger trong browser |
-| Single-threaded | ✅ | Chỉ xử lý 1 request tại 1 thời điểm |
+| Auto-reload | Bật | Tự khởi động lại khi code thay đổi |
+| Debug mode | Bật | Hiển thị stack trace chi tiết |
+| Interactive debugger | Bật | Werkzeug debugger trong browser |
+| Single-threaded | Có | Chỉ xử lý 1 request tại 1 thời điểm |
 | CORS | `*` | Cho phép tất cả origin |
 
-> ⚠️ **CẢNH BÁO**: KHÔNG BAO GIỜ sử dụng Flask development server trong production. Server này không được thiết kế cho hiệu suất, bảo mật hay ổn định.
+Werkzeug debugger cho phép thực thi Python code tùy ý từ browser nếu ai đó truy cập được stack trace page — không chỉ là "hiển thị lỗi chi tiết", đây gần như là RCE nếu vô tình bật ở production. Đừng dùng Flask dev server ngoài môi trường local/staging cô lập.
 
 ---
 
@@ -367,7 +369,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     threads = int(os.environ.get('WAITRESS_THREADS', 8))
 
-    print(f"🚀 Starting Partogram Backend (Production)")
+    print(f"Starting Partogram Backend (Production)")
     print(f"   Host: {host}:{port}")
     print(f"   Threads: {threads}")
     print(f"   Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
@@ -411,7 +413,7 @@ nssm status PartogramBackend
 nssm remove PartogramBackend confirm
 ```
 
-Hoặc sử dụng PowerShell native:
+Hoặc dùng PowerShell native:
 
 ```powershell
 # Tạo Windows Service bằng sc.exe
@@ -443,7 +445,7 @@ stateDiagram-v2
     Reloading --> Running: Graceful reload
     Running --> Stopping: SIGTERM / Stop command
     Stopping --> [*]: Cleanup & exit
-    
+
     Running --> Error: Unhandled exception
     Error --> Restarting: Auto-restart (systemd)
     Restarting --> Starting
@@ -451,14 +453,12 @@ stateDiagram-v2
 
 ### Graceful Shutdown
 
-Host Service xử lý shutdown an toàn:
-
-1. **Nhận tín hiệu dừng** (SIGTERM/SIGINT)
-2. **Dừng nhận request mới** — Không accept connection mới
-3. **Hoàn tất request đang xử lý** — Chờ tối đa `timeout` giây
-4. **Đóng kết nối DB** — SQLAlchemy session cleanup
-5. **Ghi log dừng** — Log shutdown event
-6. **Thoát process** — Exit code 0
+1. Nhận tín hiệu dừng (SIGTERM/SIGINT).
+2. Dừng nhận request mới.
+3. Hoàn tất request đang xử lý — chờ tối đa `timeout` giây.
+4. Đóng kết nối DB — SQLAlchemy session cleanup.
+5. Ghi log dừng.
+6. Thoát process (exit code 0).
 
 ### Worker Management (Gunicorn)
 
@@ -476,8 +476,6 @@ Host Service xử lý shutdown an toàn:
 
 ### Endpoint Health Check
 
-Backend cung cấp sẵn endpoint health check:
-
 ```
 GET /api/health
 ```
@@ -491,6 +489,8 @@ GET /api/health
   "version": "1.0.0"
 }
 ```
+
+Endpoint này chỉ kiểm tra process còn phản hồi, **không** kiểm tra kết nối DB. Nếu PostgreSQL down mà process Gunicorn vẫn sống, health check vẫn trả `200 healthy` trong khi mọi request thật đều fail 500. Đừng chỉ dựa vào health check này để kết luận hệ thống đang ổn — kết hợp với log/alert ở tầng ứng dụng.
 
 ### Script kiểm tra sức khỏe nâng cao
 
@@ -507,10 +507,10 @@ TIMEOUT=5
 response=$(curl -s -o /dev/null -w "%{http_code}" --max-time $TIMEOUT "$HEALTH_URL")
 
 if [ "$response" = "200" ]; then
-    echo "✅ Backend healthy"
+    echo "Backend healthy"
     exit 0
 else
-    echo "❌ Backend unhealthy (HTTP $response)"
+    echo "Backend unhealthy (HTTP $response)"
     exit 1
 fi
 ```
@@ -523,11 +523,11 @@ $url = "http://localhost:5000/api/health"
 try {
     $response = Invoke-RestMethod -Uri $url -TimeoutSec 5
     if ($response.status -eq "healthy") {
-        Write-Host "✅ Backend healthy - Version $($response.version)"
+        Write-Host "Backend healthy - Version $($response.version)"
         exit 0
     }
 } catch {
-    Write-Host "❌ Backend unhealthy: $_"
+    Write-Host "Backend unhealthy: $_"
     exit 1
 }
 ```
@@ -557,7 +557,7 @@ Register-ScheduledTask -TaskName "PartogramHealthCheck" `
 
 ### Cấu hình Logging
 
-Logging mặc định qua biến `LOG_LEVEL` trong `.env`. Các mức hỗ trợ:
+Mức log cấu hình qua `LOG_LEVEL` trong `.env`:
 
 | Level | Khi nào sử dụng |
 |-------|----------------|
@@ -600,14 +600,16 @@ Tạo file `/etc/logrotate.d/partogram`:
 
 | # | Hạng mục | Trạng thái | Hướng dẫn |
 |---|---------|-----------|-----------|
-| 1 | SECRET_KEY ngẫu nhiên | ⚠️ Cần cấu hình | Tạo key: `python -c "import secrets; print(secrets.token_hex(32))"` |
-| 2 | Debug mode TẮT | ⚠️ Cần cấu hình | `FLASK_DEBUG=0` và `FLASK_ENV=production` |
-| 3 | CORS giới hạn | ⚠️ Cần cấu hình | Chỉ cho phép domain cụ thể, không dùng `*` |
-| 4 | HTTPS | ❌ Chưa implement | Cấu hình tại Reverse Proxy (Nginx/IIS) |
-| 5 | Authentication | ❌ Chưa implement | Cần thêm JWT hoặc session-based auth |
-| 6 | Rate limiting | ❌ Chưa implement | Dùng `flask-limiter` hoặc Nginx `limit_req` |
-| 7 | Request size limit | ✅ (Gunicorn) | `limit_request_line`, `limit_request_fields` |
-| 8 | Firewall | ⚠️ Tùy hạ tầng | Chỉ expose port 80/443, không expose 5000 trực tiếp |
+| 1 | SECRET_KEY ngẫu nhiên | Cần cấu hình | Tạo key: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| 2 | Debug mode TẮT | Cần cấu hình | `FLASK_DEBUG=0` và `FLASK_ENV=production` |
+| 3 | CORS giới hạn | Cần cấu hình | Chỉ cho phép domain cụ thể, không dùng `*` |
+| 4 | HTTPS | Chưa implement | Cấu hình tại Reverse Proxy (Nginx/IIS) |
+| 5 | Authentication | Chưa implement | Cần thêm JWT hoặc session-based auth — xem [Backend_Architecture.md](./Backend_Architecture.md) |
+| 6 | Rate limiting | Chưa implement | Dùng `flask-limiter` hoặc Nginx `limit_req` |
+| 7 | Request size limit | Có (Gunicorn) | `limit_request_line`, `limit_request_fields` |
+| 8 | Firewall | Tùy hạ tầng | Chỉ expose port 80/443, không expose 5000 trực tiếp |
+
+Items 4-6 chưa implement là gap thật, không phải nice-to-have. Hệ thống lưu dữ liệu bệnh nhân sản khoa — nếu deploy ra ngoài mạng nội bộ mà không xử lý 3 mục này trước, đây là rủi ro cần escalate với team trước khi go-live, không phải việc để "làm sau".
 
 ### Tạo SECRET_KEY an toàn
 
@@ -730,7 +732,7 @@ Cấu hình `web.config` cho reverse proxy:
 </configuration>
 ```
 
-> ⚠️ **Yêu cầu**: Cài đặt module **URL Rewrite** và **Application Request Routing (ARR)** cho IIS.
+Yêu cầu cài module **URL Rewrite** và **Application Request Routing (ARR)** cho IIS — không có sẵn mặc định.
 
 ---
 
@@ -754,24 +756,26 @@ threads = (4 × CPU_cores)
 | Concurrent requests | ~9 | ~16 |
 | RAM ước tính | ~450 MB (50 MB/worker) | ~200 MB |
 
+Con số này là điểm khởi đầu hợp lý, không phải giá trị tối ưu đã đo đạc. Vì backend không có cache và tính status/alert real-time trên mỗi request (xem `Backend_Architecture.md`), CPU thực tế tốn nhiều hơn một API CRUD thuần túy — nên benchmark lại với traffic thật trước khi chốt số worker cho production.
+
 ### Performance Tuning Tips
 
-1. **Database Connection Pool**: Cấu hình `SQLALCHEMY_POOL_SIZE` cho production
+1. **Database Connection Pool**: cấu hình `SQLALCHEMY_POOL_SIZE` cho production.
    ```python
    app.config['SQLALCHEMY_POOL_SIZE'] = 10
    app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
    app.config['SQLALCHEMY_MAX_OVERFLOW'] = 20
    ```
 
-2. **Preload Application**: Gunicorn `preload_app = True` giúp share memory giữa workers
+2. **Preload Application**: `preload_app = True` giúp share memory giữa các Gunicorn worker.
 
-3. **Max Requests**: Restart worker sau N requests để chống memory leak
+3. **Max Requests**: restart worker sau N request để tránh memory leak tích lũy.
    ```
    max_requests = 1000
    max_requests_jitter = 50
    ```
 
-4. **Keep-Alive**: Giữ connection để giảm TCP handshake overhead
+4. **Keep-Alive**: giữ connection để giảm TCP handshake overhead.
    ```
    keepalive = 5  # giây
    ```
@@ -805,6 +809,8 @@ psql -U partogram_user -h localhost partogram_prod < backup_20251107_143000.sql
 0 2 * * * pg_dump -U partogram_user partogram_prod | gzip > /backups/partogram_$(date +\%Y\%m\%d).sql.gz
 ```
 
+Với dữ liệu lâm sàng, backup daily là mức tối thiểu chấp nhận được, không phải mức lý tưởng — cân nhắc thêm WAL archiving/point-in-time recovery nếu downtime hoặc mất dữ liệu vài giờ là không chấp nhận được với khoa sản.
+
 ### Disaster Recovery
 
 ```mermaid
@@ -823,7 +829,7 @@ flowchart TD
     H --> L
     J --> L
     L --> M{"Healthy?"}
-    M -->|"Có"| N["✅ Đã khôi phục"]
+    M -->|"Có"| N["Đã khôi phục"]
     M -->|"Không"| O["Rollback code + restore DB backup"]
 ```
 
@@ -891,19 +897,19 @@ flask shell -c "from app import db; print(db.engine.url)"
 | `assessment_bp` | `/api/assessments` | `views/assessment_views.py` |
 | Health Check | `/api/health` | `app/__init__.py` |
 
-> 📖 Xem chi tiết tất cả endpoints và mẫu JSON tại [API_Reference.md](./API_Reference.md)
+Xem chi tiết tất cả endpoint và mẫu JSON tại [API_Reference.md](./API_Reference.md).
 
 ---
 
 **Tài liệu liên quan:**
 
-- [API_Reference.md](./API_Reference.md) — Tham chiếu chi tiết tất cả API endpoints và mẫu JSON request/response
-- [Backend_Architecture.md](./Backend_Architecture.md) — Kiến trúc backend, service layer, alert system
+- [API_Reference.md](./API_Reference.md) — Chi tiết endpoint và mẫu JSON request/response
+- [Backend_Architecture.md](./Backend_Architecture.md) — Kiến trúc backend, service layer, alert system, danh sách vấn đề thiết kế
 - [Database_Schema.md](./Database_Schema.md) — Schema database và quan hệ giữa các bảng
-- [Setup_Guide.md](./Setup_Guide.md) — Hướng dẫn cài đặt và phát triển
-- [DEPLOYMENT.md](../DEPLOYMENT.md) — Hướng dẫn triển khai tổng thể (frontend + backend)
+- [Setup_Guide.md](./Setup_Guide.md) — Cài đặt và phát triển
+- [DEPLOYMENT.md](../DEPLOYMENT.md) — Triển khai tổng thể (frontend + backend)
 
 ---
 
-**Cập nhật lần cuối:** Tháng 7, 2026  
+**Cập nhật lần cuối:** Tháng 7, 2026
 **Phiên bản:** 1.0.0

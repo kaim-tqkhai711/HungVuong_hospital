@@ -1,8 +1,10 @@
-# 🗄️ Database Schema - Hệ thống Partogram Bệnh viện Hùng Vương
+# Database Schema — Hệ thống Partogram Bệnh viện Hùng Vương
 
-> **Database Engine**: SQLite (development) / PostgreSQL (production)  
-> **ORM**: SQLAlchemy 2.0  
+> **Database Engine**: SQLite (development) / PostgreSQL (production)
+> **ORM**: SQLAlchemy 2.0
 > **Migration**: Flask-Migrate (Alembic)
+
+Tài liệu mô tả schema thực tế của DB, không phải schema lý tưởng. Những chỗ ghi "smell" là vấn đề thiết kế đã biết, không phải điều bạn cần sửa ngay — nhưng cần biết trước khi viết migration mới đè lên.
 
 ---
 
@@ -97,6 +99,8 @@ erDiagram
     }
 ```
 
+`patient_id` là String(10) làm PK cho `patients`, không phải surrogate integer key. Business ID (VD: `BN001`) và primary key là cùng một giá trị — tiện cho tra cứu qua API, nhưng nếu sau này cần đổi mã bệnh nhân (như `PUT /api/patients/<id>` hiện đang cho phép), bạn phải cascade update qua tất cả FK. Cân nhắc kỹ trước khi cho phép sửa PK tự do ở tầng API.
+
 ---
 
 ## Bảng `patients`
@@ -118,6 +122,8 @@ erDiagram
 | `created_at` | `DateTime` | DEFAULT `utcnow` | Thời điểm tạo |
 | `updated_at` | `DateTime` | DEFAULT `utcnow`, AUTO UPDATE | Thời điểm cập nhật |
 
+`gestational_week` là `String`, không phải số — lưu dạng "39 tuần" hoặc "38 tuần 3 ngày". Tiện cho hiển thị, nhưng không sort/so sánh được bằng SQL nếu sau này cần query kiểu "tìm bệnh nhân >= 37 tuần". Nếu cần query theo tuổi thai, sẽ phải parse string ở tầng ứng dụng hoặc thêm cột số riêng.
+
 ### Relationships
 
 | Relationship | Target | Type | Cascade |
@@ -126,6 +132,8 @@ erDiagram
 | `assessments` | `Assessment` | One-to-Many | `all, delete-orphan` |
 | `outcomes` | `Outcome` | One-to-Many | `all, delete-orphan` |
 | `alerts` | `Alert` | One-to-Many | *(backref only)* |
+
+Chú ý `alerts` không có cascade delete — xóa patient sẽ để lại alert mồ côi trỏ vào `patient_id` không còn tồn tại, trừ khi DB có FK constraint riêng xử lý việc này. Kiểm tra lại nếu định thêm chức năng xóa patient thật sự (hiện tại API chưa có endpoint `DELETE /patients/<id>`).
 
 ### Methods
 
@@ -139,7 +147,7 @@ erDiagram
 
 ## Bảng `partogram_records`
 
-> Dữ liệu theo dõi chuyển dạ (Partogram). Đây là bảng core của hệ thống.
+> Bảng lõi của toàn hệ thống — mọi chỉ số theo dõi chuyển dạ đều nằm ở đây.
 
 | Column | Type | Constraints | Mô tả |
 |--------|------|------------|-------|
@@ -187,11 +195,13 @@ erDiagram
 | `doctor_signature` | `Text` | NULLABLE | Chữ ký bác sĩ (Base64 image) |
 | `created_at` | `DateTime` | DEFAULT `utcnow` | Thời điểm tạo record |
 
+Ba cột "Đánh giá" (`nurse_assessment`, `doctor_assessment`, `treatment_plan`) trùng lặp gần như 100% với bảng `assessments` bên dưới — xem phần smell ở bảng đó. `doctor_signature` lưu base64 image trực tiếp trong cột Text — hoạt động tốt với vài trăm record, nhưng nếu volume tăng, kích thước bảng sẽ phình nhanh vì ảnh chữ ký không nhỏ. Nếu cần tối ưu, tách ra object storage và chỉ lưu reference ở đây.
+
 ---
 
 ## Bảng `assessments`
 
-> Đánh giá và kế hoạch điều trị (lưu riêng, độc lập với partogram record).
+> Đánh giá và kế hoạch điều trị, lưu như một bảng riêng.
 
 | Column | Type | Constraints | Mô tả |
 |--------|------|------------|-------|
@@ -204,6 +214,8 @@ erDiagram
 | `assessor_role` | `String(20)` | NOT NULL, DEFAULT `'doctor'` | Vai trò người đánh giá |
 | `assessed_at` | `DateTime` | DEFAULT `utcnow` | Thời điểm đánh giá |
 | `assessed_by` | `String(100)` | NULLABLE | Tên người đánh giá |
+
+**Smell rõ nhất trong toàn bộ schema**: bảng này chứa gần như y hệt 3 cột assessment của `partogram_records`, không có ràng buộc nào đảm bảo hai nơi đồng bộ. Trước khi thêm feature đọc/ghi assessment, xác định trước: đâu là nguồn sự thật (source of truth)? Nếu cả hai đều đang được ghi độc lập bởi các phần khác nhau của UI, đây là data integrity risk thật sự, không chỉ là "code chưa đẹp".
 
 ---
 
@@ -227,6 +239,8 @@ erDiagram
 | `acknowledged_by` | `String(100)` | NULLABLE | Người xác nhận |
 | `created_at` | `DateTime` | DEFAULT `utcnow` | Thời điểm tạo |
 
+Bảng này không unique-constraint theo `(patient_id, parameter, created_at)` hay tương tự — mỗi lần record được đánh giá lại (update), alert cũ có thể vẫn còn tồn tại song song với alert mới cùng loại nếu code không tự dọn. Kiểm tra `AlertService` xem có logic xóa/deduplicate alert cũ trước khi insert alert mới hay không nếu bạn thấy danh sách alert phình to bất thường.
+
 ### Giá trị `parameter`
 
 | Parameter | Alert Type | Mô tả |
@@ -238,6 +252,8 @@ erDiagram
 | `fetal_heart_rate` | `fetus` | Tim thai |
 | `cervix_dilation_rate` | `labor` | Tốc độ mở cổ tử cung |
 | `contractions` | `labor` | Cơn co tử cung |
+
+`diastolic_bp` có threshold định nghĩa (xem bảng threshold bên dưới) nhưng không xuất hiện trong danh sách parameter thực tế được check — đúng như ghi chú trong `Backend_Architecture.md`, đây là tính năng chưa implement, không phải tài liệu thiếu sót.
 
 ---
 
@@ -261,11 +277,13 @@ erDiagram
 | `recorded_at` | `DateTime` | DEFAULT `utcnow` | Thời điểm ghi nhận |
 | `recorded_by` | `String(100)` | NULLABLE | Người ghi nhận |
 
+Quan hệ với `patients` là One-to-Many trong ERD, nhưng API (`POST /api/assessments/<patient_id>/outcome`) hoạt động theo kiểu upsert — mỗi bệnh nhân trong thực tế chỉ nên có 1 outcome. Không có unique constraint nào enforce điều này ở tầng DB; nếu có race condition (hai request POST outcome gần như đồng thời), có thể tạo ra 2 row outcome cho cùng 1 patient thay vì update 1 row.
+
 ---
 
 ## Cấu hình Threshold
 
-> Ngưỡng cảnh báo được định nghĩa trong class `ThresholdConfig` (không lưu DB, hardcoded trong code).
+> Ngưỡng cảnh báo định nghĩa trong class `ThresholdConfig` — không lưu DB, hardcode trong code.
 
 ### Mother's Vital Signs
 
@@ -275,6 +293,8 @@ erDiagram
 | HA tâm thu (mmHg) | 90 | 140 | <90 or >140 | <80 or >160 |
 | HA tâm trương (mmHg) | 60 | 90 | — | — |
 | Nhiệt độ (°C) | 36.0 | 37.5 | >37.5 | >38.0 |
+
+Diastolic BP có ngưỡng normal định nghĩa nhưng cột Warning/Critical để trống — vì code chưa check giá trị này (xem ghi chú ở bảng `alerts` phía trên). Đừng nhầm hai ô trống này là "không có ngưỡng lâm sàng", mà là "chưa implement".
 
 ### Fetus Monitoring
 
@@ -291,7 +311,9 @@ erDiagram
 
 ### Quy tắc tính Status tổng thể
 
-1. **CTG ưu tiên tuyệt đối**: CTG ≥ 3 → `critical`, CTG = 2 → `warning`
-2. **Đếm vi phạm**: Nếu có ≥1 `critical_violation` → `critical`
-3. **Warning**: Nếu có ≥1 `violation` → `warning`
-4. **Normal**: Không có vi phạm nào
+1. **CTG ưu tiên tuyệt đối**: CTG ≥ 3 → `critical`, CTG = 2 → `warning` — bất kể các chỉ số khác thế nào.
+2. **Đếm vi phạm**: ≥1 `critical_violation` → `critical`.
+3. **Warning**: ≥1 `violation` (không critical) → `warning`.
+4. **Normal**: không có vi phạm nào.
+
+Ngưỡng này hardcode trong code Python, nghĩa là thay đổi protocol lâm sàng = code change + deploy, không có audit trail về việc "ngưỡng này được đổi khi nào, bởi ai, dựa trên hướng dẫn nào". Nếu khoa sản có nhu cầu điều chỉnh ngưỡng theo thời gian, đây là ưu tiên nên chuyển sang bảng DB có versioning.
