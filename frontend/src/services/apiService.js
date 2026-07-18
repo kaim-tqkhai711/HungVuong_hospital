@@ -1,7 +1,7 @@
 // API Service for communicating with backend
 class ApiService {
     constructor() {
-        this.baseUrl = 'http://127.0.0.1:5000/api';
+        this.baseUrl = '/api';
         this.headers = {
             'Content-Type': 'application/json',
         };

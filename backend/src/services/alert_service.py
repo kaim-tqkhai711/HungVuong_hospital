@@ -1,4 +1,4 @@
-from src.models import Patient, PartogramRecord, Alert, ThresholdConfig
+from src.database.models import Patient, PartogramRecord, Alert, ThresholdConfig
 from src import db
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
@@ -178,7 +178,7 @@ class AlertService:
     
     def calculate_patient_status(self, patient_id: str) -> str:
         """Calculate overall patient status based on LATEST partogram record only"""
-        from src.models import PartogramRecord
+        from src.database.models import PartogramRecord
         
         # 🚨 FIX: Get only the LATEST partogram record instead of all recent alerts
         latest_record = PartogramRecord.query.filter_by(patient_id=patient_id)\
@@ -239,7 +239,7 @@ class AlertService:
     
     def get_current_alerts_for_patient(self, patient_id: str) -> List[Dict]:
         """Generate current alerts for a patient based on LATEST record only"""
-        from src.models import PartogramRecord
+        from src.database.models import PartogramRecord
         
         # Get the latest partogram record
         latest_record = PartogramRecord.query.filter_by(patient_id=patient_id)\
@@ -330,7 +330,7 @@ class AlertService:
     
     def get_patient_alerts_latest_only(self, patient_id: str) -> List[Alert]:
         """Get alerts for a patient from the LATEST partogram record only"""
-        from src.models import PartogramRecord
+        from src.database.models import PartogramRecord
         
         # Get the latest partogram record
         latest_record = PartogramRecord.query.filter_by(patient_id=patient_id)\

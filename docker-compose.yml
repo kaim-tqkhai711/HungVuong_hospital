@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-partogram}
+      POSTGRES_USER: ${POSTGRES_USER:-partogram}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-partogram}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    environment:
+      - PORT=80
+      - BACKEND_URL=backend:5000
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-partogram}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-partogram}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+
+volumes:
+  postgres_data:
