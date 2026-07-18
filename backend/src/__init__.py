@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -37,7 +37,7 @@ def create_app(config_name='development'):
     })
     
     # Import models after db is initialized 
-    from src.models import Patient, PartogramRecord, Assessment, Alert, Outcome
+    from src.database.models import Patient, PartogramRecord, Assessment, Alert, Outcome
     
     # Register blueprints
     from src.views.patient_views import patient_bp
@@ -67,4 +67,16 @@ def create_app(config_name='development'):
             'version': '1.0.0'
         }
     
+    frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend_static')
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_frontend(path):
+        if path.startswith('api/'):
+            return {'error': 'Not found'}, 404
+        full_path = os.path.join(frontend_dir, path)
+        if path and os.path.isfile(full_path):
+            return send_from_directory(frontend_dir, path)
+        return send_from_directory(frontend_dir, 'index.html')
+
     return app

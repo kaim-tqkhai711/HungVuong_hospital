@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from src.models import Assessment, Outcome
+from src.database.models import Assessment, Outcome
 from src.services.partogram_service import PartogramService
 from src import db
 from datetime import datetime
