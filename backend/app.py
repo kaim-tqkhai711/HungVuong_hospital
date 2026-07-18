@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 from src import create_app, db
 
@@ -8,7 +9,11 @@ app = create_app(os.environ.get('FLASK_ENV', 'development'))
 application = app
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+        print('Database tables created successfully', flush=True)
+    except Exception as e:
+        print(f'Warning: Could not create database tables: {e}', flush=True)
 
 @app.cli.command()
 def seed_db():
