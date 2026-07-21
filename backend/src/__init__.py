@@ -43,10 +43,12 @@ def create_app(config_name='development'):
     from src.views.patient_views import patient_bp
     from src.views.partogram_views import partogram_bp
     from src.views.assessment_views import assessment_bp
-    
+    from src.views.external_views import external_bp
+
     app.register_blueprint(patient_bp, url_prefix='/api/patients')
     app.register_blueprint(partogram_bp, url_prefix='/api/partogram')
     app.register_blueprint(assessment_bp, url_prefix='/api/assessments')
+    app.register_blueprint(external_bp, url_prefix='/api/external')
     
     # Error handlers
     @app.errorhandler(404)

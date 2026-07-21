@@ -160,6 +160,19 @@ class ApiService {
         });
     }
 
+    // Hospital External API endpoints
+    async getDieuTriChamSoc(mabn, ngay) {
+        let endpoint = `/external/dieutri-chamsoc/${mabn}`;
+        if (ngay) {
+            endpoint += `?ngay=${encodeURIComponent(ngay)}`;
+        }
+        return this.makeRequest(endpoint);
+    }
+
+    async checkHospitalApiHealth() {
+        return this.makeRequest('/external/health');
+    }
+
     // Utility methods
     formatDateTime(dateString) {
         if (!dateString) return '';
