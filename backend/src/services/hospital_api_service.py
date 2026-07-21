@@ -76,7 +76,7 @@ class HospitalApiService:
         try:
             response = requests.post(
                 self.graphql_url,
-                json={"query": "{}"},
+                json={"query": "query { __typename }"},
                 headers={"Content-Type": "application/json"},
                 timeout=self.timeout,
             )

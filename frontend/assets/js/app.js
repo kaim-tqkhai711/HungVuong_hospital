@@ -313,11 +313,16 @@ class PatientListApp {
             <form id="newPatientForm" class="add-patient-form">
                 <div class="form-section">
                     <h3>👤 Thông tin cơ bản</h3>
+                    <div id="externalInfoPreview" style="display: none; margin-bottom: 15px; padding: 12px; background: #eef6ff; border-left: 4px solid #0066cc; border-radius: 4px; font-size: 0.9em;">
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Mã bệnh nhân:</label>
-                            <input type="text" name="id" placeholder="Để trống để tự động tạo (BN00001, BN00002...)">
-                            <small class="form-hint">Có thể để trống, hệ thống sẽ tự động tạo mã duy nhất</small>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" name="id" placeholder="VD: 25261589" style="flex: 1;">
+                                <button type="button" id="btnFetchExternal" class="btn-secondary" style="white-space: nowrap; padding: 6px 12px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">🔍 Tra cứu BV</button>
+                            </div>
+                            <small class="form-hint">Nhập Mã BN và nhấn nút Tra cứu để tự động lấy thông tin từ BV Hùng Vương</small>
                         </div>
                         <div class="form-group">
                             <label>Họ và tên *:</label>
@@ -391,6 +396,72 @@ class PatientListApp {
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         const datetimeInput = formContainer.querySelector('input[name="labor_diagnosis_time"]');
         datetimeInput.value = now.toISOString().slice(0, 16);
+        
+        // Handle External API lookup
+        const btnFetchExternal = formContainer.querySelector('#btnFetchExternal');
+        const idInput = formContainer.querySelector('input[name="id"]');
+        const nameInput = formContainer.querySelector('input[name="name"]');
+        const ageInput = formContainer.querySelector('input[name="age"]');
+        const externalPreview = formContainer.querySelector('#externalInfoPreview');
+        const self = this;
+
+        btnFetchExternal.addEventListener('click', async () => {
+            const mabn = idInput.value.trim();
+            if (!mabn) {
+                AlertUtils.showNotification('Vui lòng nhập Mã bệnh nhân để tra cứu!', 'warning');
+                idInput.focus();
+                return;
+            }
+
+            btnFetchExternal.disabled = true;
+            btnFetchExternal.innerHTML = '⏳ Đang tra cứu...';
+            externalPreview.style.display = 'none';
+
+            try {
+                const response = await self.apiService.getDieuTriChamSoc(mabn);
+                if (response && response.success && response.data) {
+                    const data = response.data;
+                    if (data.hoten) {
+                        nameInput.value = data.hoten;
+                    }
+                    if (data.tuoi || data.age) {
+                        ageInput.value = data.tuoi || data.age;
+                    }
+
+                    let previewHtml = `
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                            <strong style="color: #0066cc;">✅ Đã tìm thấy dữ liệu từ BV Hùng Vương</strong>
+                            <span style="font-size: 0.85em; color: #666;">Ngày: ${data.ngay || 'Hôm nay'}</span>
+                        </div>
+                        <div style="font-size: 0.9em; color: #333;">
+                            <strong>Họ và tên:</strong> ${data.hoten || 'Chưa rõ'}
+                    `;
+                    
+                    if (data.features) {
+                        const featStr = typeof data.features === 'object' ? JSON.stringify(data.features) : data.features;
+                        previewHtml += `<br><strong>Diễn biến/Chỉ số:</strong> ${featStr}`;
+                    }
+                    if (data.nhandinh) {
+                        const nhandinhStr = typeof data.nhandinh === 'object' ? JSON.stringify(data.nhandinh) : data.nhandinh;
+                        previewHtml += `<br><strong>Nhận định:</strong> ${nhandinhStr}`;
+                    }
+                    
+                    previewHtml += `</div>`;
+                    externalPreview.innerHTML = previewHtml;
+                    externalPreview.style.display = 'block';
+
+                    AlertUtils.showNotification(`Đã tìm thấy & điền thông tin bệnh nhân: ${data.hoten || mabn}`, 'success');
+                } else {
+                    AlertUtils.showNotification(response?.error || 'Không tìm thấy dữ liệu bệnh nhân từ hệ thống BV Hùng Vương', 'warning');
+                }
+            } catch (err) {
+                console.error('Lỗi khi tra cứu dữ liệu bệnh nhân từ BV:', err);
+                AlertUtils.showNotification('Lỗi kết nối tới hệ thống BV Hùng Vương: ' + err.message, 'error');
+            } finally {
+                btnFetchExternal.disabled = false;
+                btnFetchExternal.innerHTML = '🔍 Tra cứu BV';
+            }
+        });
         
         // Add parity input formatting
         const parityInput = formContainer.querySelector('input[name="parity"]');
