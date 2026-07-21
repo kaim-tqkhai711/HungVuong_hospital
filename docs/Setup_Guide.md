@@ -1,6 +1,6 @@
-# 🚀 Setup & Development Guide - Hệ thống Partogram BV Hùng Vương
+# Setup & Development Guide — Hệ thống Partogram BV Hùng Vương
 
-> Hướng dẫn cài đặt, chạy và phát triển backend.
+> Cài đặt, chạy và phát triển backend. Nếu bạn mới join dự án, làm theo thứ tự dưới đây là đủ để có server chạy local trong vài phút.
 
 ---
 
@@ -50,7 +50,7 @@ cp .env.example .env
 # Chỉnh sửa .env theo môi trường
 ```
 
-**Các biến quan trọng cần thay đổi cho production**:
+**Biến bắt buộc phải đổi cho production** (không được để giá trị mặc định — xem lý do trong [Backend_Architecture.md](./Backend_Architecture.md)):
 ```env
 FLASK_ENV=production
 SECRET_KEY=<your-random-secret-key>
@@ -78,6 +78,8 @@ python app.py
 flask run --host=0.0.0.0 --port=5000
 ```
 
+Nếu server chạy được và `curl http://localhost:5000/api/health` trả `{"status": "healthy"}`, setup xong — phần còn lại của tài liệu này là workflow phát triển hàng ngày.
+
 ---
 
 ## Development Workflow
@@ -90,7 +92,10 @@ Khi thay đổi model (thêm/sửa/xóa column):
 # 1. Tạo migration script
 flask db migrate -m "Mô tả thay đổi"
 
-# 2. Review migration file trong migrations/versions/
+# 2. Review migration file trong migrations/versions/ — Alembic autogenerate
+#    không phải lúc nào cũng đoán đúng, đặc biệt với đổi tên cột hay thay
+#    đổi kiểu dữ liệu. Đọc kỹ trước khi apply, đừng chạy migrate rồi
+#    upgrade luôn mà không xem qua.
 
 # 3. Apply migration
 flask db upgrade
@@ -148,29 +153,31 @@ backend/
 
 ### Thêm field mới cho Model
 
-1. **Thêm column** trong `app/models/__init__.py`
-2. **Cập nhật `to_dict()`** để serialize field mới
-3. **Tạo migration**: `flask db migrate -m "Add <field_name>"`
-4. **Apply**: `flask db upgrade`
-5. **Cập nhật service** nếu cần xử lý logic
-6. **Cập nhật view** nếu cần expose qua API
-7. **Cập nhật documentation**
+1. Thêm column trong `app/models/__init__.py`.
+2. Cập nhật `to_dict()` để serialize field mới — dễ quên bước này, kết quả là field tồn tại trong DB nhưng không bao giờ xuất hiện trong response API. Nếu field mới không thấy trong JSON, đây là chỗ đầu tiên cần kiểm tra.
+3. Tạo migration: `flask db migrate -m "Add <field_name>"`.
+4. Apply: `flask db upgrade`.
+5. Cập nhật service nếu cần xử lý logic.
+6. Cập nhật view nếu cần expose qua API.
+7. Cập nhật documentation (file này và `API_Reference.md`/`Database_Schema.md` nếu liên quan).
 
 ### Thêm API endpoint mới
 
-1. **Chọn blueprint** phù hợp hoặc tạo mới
-2. **Thêm route** trong file view tương ứng
-3. **Thêm logic** trong service layer (không viết logic trong view)
-4. **Register blueprint** trong `app/__init__.py` nếu là blueprint mới
-5. **Cập nhật API_Reference.md**
+1. Chọn blueprint phù hợp hoặc tạo mới.
+2. Thêm route trong file view tương ứng.
+3. Thêm logic trong service layer — **không** viết business logic trong view. Codebase này giữ ranh giới Views/Services khá nghiêm túc, đừng là người phá vỡ nó.
+4. Register blueprint trong `app/__init__.py` nếu là blueprint mới.
+5. Cập nhật `API_Reference.md` với endpoint, request/response mẫu.
 
 ### Thêm logic cảnh báo mới
 
-1. **Thêm threshold** trong `ThresholdConfig`
-2. **Thêm check method** trong `AlertService` 
-3. **Gọi method mới** trong `evaluate_partogram_record()`
-4. **Cập nhật `calculate_patient_status()`** nếu cần
-5. **Cập nhật `get_current_alerts_for_patient()`**
+1. Thêm threshold trong `ThresholdConfig`.
+2. Thêm check method trong `AlertService`.
+3. Gọi method mới trong `evaluate_partogram_record()`.
+4. Cập nhật `calculate_patient_status()` nếu cần.
+5. Cập nhật `get_current_alerts_for_patient()`.
+
+Lưu ý: toàn bộ evaluation chạy đồng bộ trong request `POST /records` (xem `Backend_Architecture.md`). Nếu check method mới của bạn throw exception (VD: chia cho 0 khi tính tốc độ mở CTC mà không có record trước), cả request tạo record sẽ fail theo — kể cả khi phần INSERT đã chạy xong. Bọc try/except quanh phần tính toán rủi ro, đừng để một rule cảnh báo lỗi làm crash toàn bộ tính năng ghi nhận dữ liệu.
 
 ---
 
@@ -196,6 +203,8 @@ flask init-db
 flask seed-db
 ```
 
+Chỉ làm việc này với DB local/dev — đây là xóa cứng, không có backup tự động. Không bao giờ chạy `rm` trên file DB production, kể cả khi bạn nghĩ mình đang ở đúng terminal.
+
 ---
 
 ## Production Deployment
@@ -215,4 +224,4 @@ SECRET_KEY=<strong-random-key>
 DATABASE_URL=postgresql://user:pass@host:5432/partogram_prod
 ```
 
-> Xem thêm chi tiết trong [DEPLOYMENT.md](../DEPLOYMENT.md)
+Đây chỉ là phần tối thiểu để chạy đúng chế độ. Với setup đầy đủ — systemd/NSSM, reverse proxy, log rotation, backup — xem [Host_Service.md](./Host_Service.md) và [DEPLOYMENT.md](../DEPLOYMENT.md).
